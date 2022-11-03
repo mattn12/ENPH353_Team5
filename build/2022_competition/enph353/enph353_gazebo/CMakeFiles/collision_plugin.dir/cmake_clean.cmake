@@ -1,6 +1,6 @@
 file(REMOVE_RECURSE
-  "/home/matthew/ros_ws/devel/lib/libcollision_plugin.pdb"
-  "/home/matthew/ros_ws/devel/lib/libcollision_plugin.so"
+  "../../../devel/lib/libcollision_plugin.pdb"
+  "../../../devel/lib/libcollision_plugin.so"
   "CMakeFiles/collision_plugin.dir/src/collision_plugin.cpp.o"
 )
 

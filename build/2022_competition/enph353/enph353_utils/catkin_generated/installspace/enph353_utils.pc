@@ -1,4 +1,4 @@
-prefix=/home/matthew/ros_ws/install
+prefix=/usr/local
 
 Name: enph353_utils
 Description: Description of enph353_utils

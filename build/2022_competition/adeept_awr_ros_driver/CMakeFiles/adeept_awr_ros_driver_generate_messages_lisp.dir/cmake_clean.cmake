@@ -1,5 +1,5 @@
 file(REMOVE_RECURSE
-  "/home/matthew/ros_ws/devel/share/common-lisp/ros/adeept_awr_ros_driver/msg/ArrayIR.lisp"
+  "../../devel/share/common-lisp/ros/adeept_awr_ros_driver/msg/ArrayIR.lisp"
   "CMakeFiles/adeept_awr_ros_driver_generate_messages_lisp"
 )
 

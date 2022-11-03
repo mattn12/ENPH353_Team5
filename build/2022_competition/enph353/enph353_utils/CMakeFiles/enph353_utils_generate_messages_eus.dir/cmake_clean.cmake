@@ -1,5 +1,5 @@
 file(REMOVE_RECURSE
-  "/home/matthew/ros_ws/devel/share/roseus/ros/enph353_utils/manifest.l"
+  "../../../devel/share/roseus/ros/enph353_utils/manifest.l"
   "CMakeFiles/enph353_utils_generate_messages_eus"
 )
 

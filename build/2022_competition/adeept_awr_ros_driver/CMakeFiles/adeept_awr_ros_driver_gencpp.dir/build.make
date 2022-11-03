@@ -43,10 +43,10 @@ RM = /usr/bin/cmake -E remove -f
 EQUALS = =
 
 # The top-level source directory on which CMake was run.
-CMAKE_SOURCE_DIR = /home/matthew/ros_ws/src
+CMAKE_SOURCE_DIR = /home/fizzer/ros_ws/src
 
 # The top-level build directory on which CMake was run.
-CMAKE_BINARY_DIR = /home/matthew/ros_ws/build
+CMAKE_BINARY_DIR = /home/fizzer/ros_ws/build
 
 # Utility rule file for adeept_awr_ros_driver_gencpp.
 
@@ -63,10 +63,10 @@ adeept_awr_ros_driver_gencpp: 2022_competition/adeept_awr_ros_driver/CMakeFiles/
 .PHONY : 2022_competition/adeept_awr_ros_driver/CMakeFiles/adeept_awr_ros_driver_gencpp.dir/build
 
 2022_competition/adeept_awr_ros_driver/CMakeFiles/adeept_awr_ros_driver_gencpp.dir/clean:
-	cd /home/matthew/ros_ws/build/2022_competition/adeept_awr_ros_driver && $(CMAKE_COMMAND) -P CMakeFiles/adeept_awr_ros_driver_gencpp.dir/cmake_clean.cmake
+	cd /home/fizzer/ros_ws/build/2022_competition/adeept_awr_ros_driver && $(CMAKE_COMMAND) -P CMakeFiles/adeept_awr_ros_driver_gencpp.dir/cmake_clean.cmake
 .PHONY : 2022_competition/adeept_awr_ros_driver/CMakeFiles/adeept_awr_ros_driver_gencpp.dir/clean
 
 2022_competition/adeept_awr_ros_driver/CMakeFiles/adeept_awr_ros_driver_gencpp.dir/depend:
-	cd /home/matthew/ros_ws/build && $(CMAKE_COMMAND) -E cmake_depends "Unix Makefiles" /home/matthew/ros_ws/src /home/matthew/ros_ws/src/2022_competition/adeept_awr_ros_driver /home/matthew/ros_ws/build /home/matthew/ros_ws/build/2022_competition/adeept_awr_ros_driver /home/matthew/ros_ws/build/2022_competition/adeept_awr_ros_driver/CMakeFiles/adeept_awr_ros_driver_gencpp.dir/DependInfo.cmake --color=$(COLOR)
+	cd /home/fizzer/ros_ws/build && $(CMAKE_COMMAND) -E cmake_depends "Unix Makefiles" /home/fizzer/ros_ws/src /home/fizzer/ros_ws/src/2022_competition/adeept_awr_ros_driver /home/fizzer/ros_ws/build /home/fizzer/ros_ws/build/2022_competition/adeept_awr_ros_driver /home/fizzer/ros_ws/build/2022_competition/adeept_awr_ros_driver/CMakeFiles/adeept_awr_ros_driver_gencpp.dir/DependInfo.cmake --color=$(COLOR)
 .PHONY : 2022_competition/adeept_awr_ros_driver/CMakeFiles/adeept_awr_ros_driver_gencpp.dir/depend
 

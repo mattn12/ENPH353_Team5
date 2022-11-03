@@ -1,6 +1,6 @@
 file(REMOVE_RECURSE
-  "/home/matthew/ros_ws/devel/lib/python3/dist-packages/adeept_awr_ros_driver/msg/_ArrayIR.py"
-  "/home/matthew/ros_ws/devel/lib/python3/dist-packages/adeept_awr_ros_driver/msg/__init__.py"
+  "../../devel/lib/python3/dist-packages/adeept_awr_ros_driver/msg/_ArrayIR.py"
+  "../../devel/lib/python3/dist-packages/adeept_awr_ros_driver/msg/__init__.py"
   "CMakeFiles/adeept_awr_ros_driver_generate_messages_py"
 )
 

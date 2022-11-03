@@ -4,5 +4,5 @@ PROJECT_PKG_CONFIG_INCLUDE_DIRS = "${prefix}/include".split(';') if "${prefix}/i
 PROJECT_CATKIN_DEPENDS = "roscpp;gazebo_ros".replace(';', ' ')
 PKG_CONFIG_LIBRARIES_WITH_PREFIX = "".split(';') if "" != "" else []
 PROJECT_NAME = "enph353_gazebo"
-PROJECT_SPACE_DIR = "/home/matthew/ros_ws/install"
+PROJECT_SPACE_DIR = "/usr/local"
 PROJECT_VERSION = "0.0.0"
