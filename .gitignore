@@ -1,8 +1,8 @@
-/enph353/enph353_gazebo/media/materials/textures/labelled/*
-/enph353/enph353_gazebo/media/materials/textures/unlabelled/*
-/enph353/enph353_gazebo/nodes/*.csv
-/enph353/enph353_gazebo/scripts/QRCode_*.png
-/enph353/enph353_gazebo/scripts/plates.csv
-/enph353/enph353_utils/scripts/*.txt
-/build
-/src/2022_competition/enph353/enph353_gazebo/scripts/*.png
+enph353/enph353_gazebo/media/materials/textures/labelled/*
+enph353/enph353_gazebo/media/materials/textures/unlabelled/*
+enph353/enph353_gazebo/nodes/*.csv
+enph353/enph353_gazebo/scripts/QRCode_*.png
+enph353/enph353_gazebo/scripts/plates.csv
+enph353/enph353_utils/scripts/*.txt
+build/
+src/2022_competition/enph353/enph353_gazebo/scripts/
