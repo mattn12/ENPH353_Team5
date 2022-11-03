@@ -1,8 +1,8 @@
-prefix=/home/matthew/ros_ws/devel
+prefix=/home/fizzer/ros_ws/devel
 
 Name: adeept_awr_ros_driver
 Description: Description of adeept_awr_ros_driver
 Version: 0.0.0
-Cflags: -I/home/matthew/ros_ws/devel/include
+Cflags: -I/home/fizzer/ros_ws/devel/include
 Libs: -L${prefix}/lib 
 Requires: rospy std_msgs message_runtime

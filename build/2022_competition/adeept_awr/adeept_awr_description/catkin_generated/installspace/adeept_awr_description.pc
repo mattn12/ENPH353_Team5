@@ -1,4 +1,4 @@
-prefix=/usr/local
+prefix=/home/fizzer/ros_ws/install
 
 Name: adeept_awr_description
 Description: Description of adeept_awr_description

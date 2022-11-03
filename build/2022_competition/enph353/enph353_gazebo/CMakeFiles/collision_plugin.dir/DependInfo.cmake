@@ -30,7 +30,7 @@ set(CMAKE_TARGET_DEFINITIONS_CXX
 
 # The include file search paths:
 set(CMAKE_CXX_TARGET_INCLUDE_PATH
-  "devel/include"
+  "/home/fizzer/ros_ws/devel/include"
   "/home/fizzer/ros_ws/src/2022_competition/enph353/enph353_gazebo/include"
   "/opt/ros/noetic/share/xmlrpcpp/cmake/../../../include/xmlrpcpp"
   "/usr/include/gazebo-11"

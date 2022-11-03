@@ -1,6 +1,6 @@
 file(REMOVE_RECURSE
-  "../../../devel/share/common-lisp/ros/enph353_gazebo/srv/GetLegalPlates.lisp"
-  "../../../devel/share/common-lisp/ros/enph353_gazebo/srv/SubmitPlate.lisp"
+  "/home/fizzer/ros_ws/devel/share/common-lisp/ros/enph353_gazebo/srv/GetLegalPlates.lisp"
+  "/home/fizzer/ros_ws/devel/share/common-lisp/ros/enph353_gazebo/srv/SubmitPlate.lisp"
   "CMakeFiles/enph353_gazebo_generate_messages_lisp"
 )
 

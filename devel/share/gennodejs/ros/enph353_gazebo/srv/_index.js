@@ -1,10 +1,10 @@
 
 "use strict";
 
-let GetLegalPlates = require('./GetLegalPlates.js')
 let SubmitPlate = require('./SubmitPlate.js')
+let GetLegalPlates = require('./GetLegalPlates.js')
 
 module.exports = {
-  GetLegalPlates: GetLegalPlates,
   SubmitPlate: SubmitPlate,
+  GetLegalPlates: GetLegalPlates,
 };

@@ -1,5 +1,5 @@
 file(REMOVE_RECURSE
-  "../../devel/include/adeept_awr_ros_driver/ArrayIR.h"
+  "/home/fizzer/ros_ws/devel/include/adeept_awr_ros_driver/ArrayIR.h"
   "CMakeFiles/adeept_awr_ros_driver_generate_messages_cpp"
 )
 
