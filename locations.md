@@ -1,9 +1,9 @@
 ## Starting the sim
 ```
-cd ~/ENPH353-Team5/ros_ws
+cd ~/ros_ws
 catkin_make
-source ~/ENPH353-Team5/ros_ws/devel/setup.bash
-cd ~/ENPH353-Team5/ros_ws/src/2022_competition/enph353/enph353_utils/scripts
+source ~/ros_ws/devel/setup.bash
+cd ~/ros_ws/src/2022_competition/enph353/enph353_utils/scripts
 ./run_sim.sh -vpg
 ```
 
