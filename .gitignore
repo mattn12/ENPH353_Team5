@@ -6,3 +6,4 @@ src/2022_competition/enph353/enph353_gazebo/scripts/plates.csv
 src/2022_competition/enph353/enph353_utils/scripts/*.txt
 build/
 src/2022_competition/enph353/enph353_gazebo/scripts/
+ros_ws/devel
