@@ -13,10 +13,10 @@ from geometry_msgs.msg import Twist
 class image_converter:
 
   def __init__(self):
-    self.pub = rospy.Publisher("/cmd_vel", Twist, queue_size=1)
+    self.pub = rospy.Publisher("/R1/cmd_vel", Twist, queue_size=1)
 
     self.bridge = CvBridge()
-    self.image_sub = rospy.Subscriber("/rrbot/camera1/image_raw",Image,self.callback)
+    self.image_sub = rospy.Subscriber("/R1/pi_camera/image_raw",Image,self.callback)
 
   def callback(self,data):
     try:
@@ -56,18 +56,18 @@ class image_converter:
       move = Twist()
       move.linear.x = 1
       
-      #Controller values
-      tol = 40
-      P_turn_scale = 0.015
-      P_move_scale = 0.0005
-      error = (400 - line_x)
+      # #Controller values
+      # tol = 40
+      # P_turn_scale = 0.015
+      # P_move_scale = 0.0005
+      # error = (400 - line_x)
 
-      #P controllerer
-      if(abs(error) > tol):
-        move.linear.x = 0.3 - abs(P_move_scale*error)
-        move.angular.z = P_turn_scale * error
-      else:
-        move.angular.z = 0
+      # #P controllerer
+      # if(abs(error) > tol):
+      #   move.linear.x = 0.3 - abs(P_move_scale*error)
+      #   move.angular.z = P_turn_scale * error
+      # else:
+      #   move.angular.z = 0
       
       #send move instructions to robot
       self.pub.publish(move)
