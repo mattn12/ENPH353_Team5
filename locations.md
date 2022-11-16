@@ -10,6 +10,7 @@ Located in
 `
 ~/ros_ws/src/2022_competition/adeept_awr/adeept_awr_gazebo/scripts
 `
+
 To run:
 ```
 source ~/ros_ws/devel/setup.bash
