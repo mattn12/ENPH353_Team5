@@ -1,6 +1,6 @@
 file(REMOVE_RECURSE
-  "/home/fizzer/ros_ws/devel/share/roseus/ros/adeept_awr_ros_driver/manifest.l"
-  "/home/fizzer/ros_ws/devel/share/roseus/ros/adeept_awr_ros_driver/msg/ArrayIR.l"
+  "../../devel/share/roseus/ros/adeept_awr_ros_driver/manifest.l"
+  "../../devel/share/roseus/ros/adeept_awr_ros_driver/msg/ArrayIR.l"
   "CMakeFiles/adeept_awr_ros_driver_generate_messages_eus"
 )
 

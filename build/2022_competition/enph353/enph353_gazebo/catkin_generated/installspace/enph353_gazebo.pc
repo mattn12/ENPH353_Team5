@@ -1,4 +1,4 @@
-prefix=/home/fizzer/ros_ws/install
+prefix=/usr/local
 
 Name: enph353_gazebo
 Description: Description of enph353_gazebo

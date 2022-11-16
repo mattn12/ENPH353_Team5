@@ -1,8 +1,8 @@
-# Install script for directory: /home/fizzer/ros_ws/src/2022_competition/adeept_awr/adeept_awr_description
+# Install script for directory: /home/matthew/ros_ws/src/2022_competition/adeept_awr/adeept_awr_description
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)
-  set(CMAKE_INSTALL_PREFIX "/home/fizzer/ros_ws/install")
+  set(CMAKE_INSTALL_PREFIX "/usr/local")
 endif()
 string(REGEX REPLACE "/$" "" CMAKE_INSTALL_PREFIX "${CMAKE_INSTALL_PREFIX}")
 
@@ -38,17 +38,17 @@ if(NOT DEFINED CMAKE_CROSSCOMPILING)
 endif()
 
 if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
-  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/lib/pkgconfig" TYPE FILE FILES "/home/fizzer/ros_ws/build/2022_competition/adeept_awr/adeept_awr_description/catkin_generated/installspace/adeept_awr_description.pc")
+  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/lib/pkgconfig" TYPE FILE FILES "/home/matthew/ros_ws/build/2022_competition/adeept_awr/adeept_awr_description/catkin_generated/installspace/adeept_awr_description.pc")
 endif()
 
 if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
   file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/share/adeept_awr_description/cmake" TYPE FILE FILES
-    "/home/fizzer/ros_ws/build/2022_competition/adeept_awr/adeept_awr_description/catkin_generated/installspace/adeept_awr_descriptionConfig.cmake"
-    "/home/fizzer/ros_ws/build/2022_competition/adeept_awr/adeept_awr_description/catkin_generated/installspace/adeept_awr_descriptionConfig-version.cmake"
+    "/home/matthew/ros_ws/build/2022_competition/adeept_awr/adeept_awr_description/catkin_generated/installspace/adeept_awr_descriptionConfig.cmake"
+    "/home/matthew/ros_ws/build/2022_competition/adeept_awr/adeept_awr_description/catkin_generated/installspace/adeept_awr_descriptionConfig-version.cmake"
     )
 endif()
 
 if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
-  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/share/adeept_awr_description" TYPE FILE FILES "/home/fizzer/ros_ws/src/2022_competition/adeept_awr/adeept_awr_description/package.xml")
+  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/share/adeept_awr_description" TYPE FILE FILES "/home/matthew/ros_ws/src/2022_competition/adeept_awr/adeept_awr_description/package.xml")
 endif()
 

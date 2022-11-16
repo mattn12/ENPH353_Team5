@@ -1,4 +1,4 @@
-prefix=/home/fizzer/ros_ws/install
+prefix=/usr/local
 
 Name: adeept_awr_ros_driver
 Description: Description of adeept_awr_ros_driver
