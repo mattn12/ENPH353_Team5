@@ -5,105 +5,148 @@ import roslib
 import sys
 import rospy
 import cv2
+import time
 from std_msgs.msg import String
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge, CvBridgeError
 from geometry_msgs.msg import Twist
 
+
+# PID control loop to find the linear and rotational movement of the robot based off of this website: http://brettbeauregard.com/blog/2011/04/improving-the-beginners-pid-introduction/
+def pid(self, kp, ki, kd, target, current, errSum, lastErr, lastTime, saturation, axis):
+  # get the time terms
+  now = time.time()
+  dt = now - lastTime
+
+  # get the error terms
+  error = target - current
+  errSum += (error * dt)
+  dErr = (error - lastErr) / dt
+
+  #compute the output
+  output = kp * error + ki * errSum + kd * dErr
+
+  # saturate the output if necessary
+  if(output < -saturation):
+    output = -saturation
+  elif(output > saturation):
+    output = saturation
+
+  # remember the necessary terms for the next loop
+  if(axis == 'x'):
+    self.lastErrX = error
+    self.lastTimeX = now
+    self.lastOutputX = output
+  elif(axis == 'y'):
+    self.lastErrY = error
+    self.lastTimeY = now
+    self.lastOutputY = output
+
+  print("Desired output: " + str(target) + "\tPosition: " + str(current) + "\tOutput: " + str(output))
+  return output
+
 class image_converter:
 
   def __init__(self):
-    self.pub = rospy.Publisher("/R1/cmd_vel", Twist, queue_size=1)
-
+    # Variables for subscribing and publishing
     self.bridge = CvBridge()
     self.image_sub = rospy.Subscriber("/R1/pi_camera/image_raw",Image,self.callback)
+    self.drive_pub = rospy.Publisher("/R1/cmd_vel", Twist, queue_size=1)
 
-  def callback(self,data):
+    # Variables for PID control
+    self.lastTimeX = time.time()
+    self.lastErrX = 0
+    self.errSumX = 0
+    self.lastOutputX = 0
+    self.lastTimeY = time.time()
+    self.lastErrY = 0
+    self.errSumY = 0
+    self.lastOutputY = 0
+
+  def callback(self, data):
     try:
       cv_image = self.bridge.imgmsg_to_cv2(data, "bgr8")
     except CvBridgeError as e:
       print(e)
 
+    # Constants
+    img_height = 200
+    move = Twist()
+    gaussianKernel = (11, 11)
+    threshold = 220
+    kpx = 0.02
+    kix = 0
+    kdx = 0.00001
+    saturationx = 1
+    targetx = 400
+    kpy = 0.05
+    kiy = 0
+    kdy = 0
+    saturationy = 1
+    targety = 725
+
     (rows,cols,channels) = cv_image.shape
 
     # slice bottom portion of image
-    img_bot = cv_image[rows-100:,:]
-    gray = cv2.cvtColor(img_bot, cv2.COLOR_RGB2GRAY)
+    img_bot = cv_image[rows - img_height:,:]
+    # Convert the frame to a different grayscale
+    img_gray = cv2.cvtColor(img_bot, cv2.COLOR_RGB2GRAY)
+    # Blur image to reduce noise
+    img_blur = cv2.GaussianBlur(img_gray, gaussianKernel, 0)
+    # Binarize the image
+    _, img_bin = cv2.threshold(img_blur, threshold, 255, cv2.THRESH_BINARY)
+    cv2.imshow("Binary Image", img_bin)
+    # Find the contours of the image
+    contours, _ = cv2.findContours(img_bin, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+    # Overlay the contours onto the original image
+    # img_cont = cv2.drawContours(cv_image, contours, -1, (0, 0, 0), 1)
 
-    #converting image frames to binary
-    threshold = 170
-    _, img_bin = cv2.threshold(gray, threshold, 255, cv2.THRESH_BINARY_INV)
+    # Check that contours contains at least one contour then on the largest contour, find the centre of its centre
+    # Print a circle at the centre of mass on the original image
+    if len(contours) > 0:
+      maxCont = max(contours, key=cv2.contourArea)
+      contMoments = cv2.moments(maxCont)
+    # Check if the contour contains any pixels
+      if contMoments['m00'] > 0:
+        centre = (int(contMoments['m10']/contMoments['m00']), int(contMoments['m01']/contMoments['m00']))
+        img_circle = cv2.circle(cv_image, (centre[0], rows - img_height + centre[1]), 5, (0, 0, 255), -1)
+        img_line = cv2.line(img_circle, (0, targety), (800, targety), (0, 0, 255), 1)
+        cv2.imshow("Circle Image",img_circle)
+        cv2.waitKey(3)
 
-    #draw contours
-    contours, hierarchy = cv2.findContours(img_bin, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    contour_color = (0, 255, 0)
-    contour_thickness = 5
-    img_contours = cv2.drawContours(img_bin, contours, -1, contour_color, contour_thickness)
+        # Use PID control to determine the rotation and speed of the vehicle
+        move.angular.z = pid(self, kpx, kix, kdx, targetx, centre[0], self.errSumX, self.lastErrX, self.lastTimeX, saturationx, 'x')
+        move.linear.x = pid(self, kpy, kiy, kdy, targety, centre[1], self.errSumY, self.lastErrY, self.lastTimeY, saturationy, 'y')
 
-    # check if m00 is zero (avoid division by 0)
-    # if the line is detected
-    if (len(contours)) > 0:
-        
-        #find middle of the line
-        M = cv2.moments(img_contours)
+        self.timeout = 0
+      else:
+        self.timeout += 1
 
-        # check if m00 is zero (avoid division by 0)
-        if (M['m00'] > 0):
-            self.timeout = 0
-
-            line_x = int(M['m10'] / M['m00'])
-
-            #draw circle
-            img_dot = cv2.circle(cv_image, (line_x, rows-100), 5, (0,0,255), -1)
-
-            # #determine which section the dot is in
-            # state_index = (int)(10*line_x/shape[1])
-            # if state_index >= 10:
-            #     state_index = 9
-            # state[state_index] = 1
-
-            # img_monitor = cv2.putText(img_dot, str(state),(0,15), cv2.FONT_HERSHEY_COMPLEX,0.4,(255,255,255),1)
-
-        # moment not found
-        else:
-            self.timeout += 1
-            if self.timeout > 10:
-                done = True
+        if self.timeout > 3:
+          done = True
 
     # if the line is not detected
     else:
-        self.timeout += 1
-        if self.timeout > 10:
-            done = True
+      # If the camera loses the line then go slowly with the last rotation determined from PID
+      move.linear.x = 0.75
+      move.angular.z = self.lastOutput
+      print("Lost line")
 
-    cv2.imshow("Image window", img_dot)
-    cv2.waitKey(3)
+      self.timeout += 1
+      if self.timeout > 10:
+          done = True
 
+    # cv2.imshow("Image window", img_dot)
+    # cv2.waitKey(3)
 
-
+    # Try to publish the movement to the robot, if not display the error
     try:
-      rate = rospy.Rate(5)
-      move = Twist()
-      move.linear.x = 0.01
-      
-      #Controller values
-      tol = 40
-      P_turn_scale = 0.01
-      P_move_scale = 0.002
-      error = (cols/2 - line_x)
-
-      #P controllerer
-      if(abs(error) > tol):
-        move.linear.x = 0.3 - abs(P_move_scale*error)
-        move.angular.z = P_turn_scale * error
-      else:
-        move.angular.z = 0
-      
-      #send move instructions to robot
-      self.pub.publish(move)
-      rate.sleep()
+      self.drive_pub.publish(move)
+      print("Published")
+ 
     except CvBridgeError as e:
       print(e)
+
 
 def main(args):
   ic = image_converter()
