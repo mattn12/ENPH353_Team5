@@ -70,6 +70,7 @@ class image_converter:
       print(e)
 
     # Constants
+    (rows,cols,channels) = cv_image.shape
     img_height = 200
     move = Twist()
     gaussianKernel = (11, 11)
@@ -78,14 +79,13 @@ class image_converter:
     kix = 0
     kdx = 0.00001
     saturationx = 1
-    targetx = 400
+    targetx = int(cols/2)
     kpy = 0.05
     kiy = 0
     kdy = 0
     saturationy = 1
-    targety = 725
+    targety = rows-150
 
-    (rows,cols,channels) = cv_image.shape
 
     # slice bottom portion of image
     img_bot = cv_image[rows - img_height:,:]
@@ -101,33 +101,72 @@ class image_converter:
     # Overlay the contours onto the original image
     # img_cont = cv2.drawContours(cv_image, contours, -1, (0, 0, 0), 1)
 
+
     # Check that contours contains at least one contour then on the largest contour, find the centre of its centre
     # Print a circle at the centre of mass on the original image
-    if len(contours) > 0:
-      maxCont = max(contours, key=cv2.contourArea)
-      contMoments = cv2.moments(maxCont)
+    if len(contours) > 1:
+      areaArray = []
+      for _, c in enumerate(contours):
+        area = cv2.contourArea(c)
+        areaArray.append(area)
+
+      #first sort the array by area
+      sortedContours = sorted(zip(areaArray, contours), key=lambda x: x[0], reverse=True)
+
+      #find the 2 largest contours
+      maxContour1 = sortedContours[0][1]
+      maxContour2 = sortedContours[1][1]
+      
+      #maxCont = max(contours, key=cv2.contourArea)
+      #contMoments = cv2.moments(maxCont)
+      contMoments1 = cv2.moments(maxContour1)
+      contMoments2 = cv2.moments(maxContour2)
     # Check if the contour contains any pixels
-      if contMoments['m00'] > 0:
-        centre = (int(contMoments['m10']/contMoments['m00']), int(contMoments['m01']/contMoments['m00']))
-        img_circle = cv2.circle(cv_image, (centre[0], rows - img_height + centre[1]), 5, (0, 0, 255), -1)
+      if contMoments1['m00'] > 0 and contMoments2['m00'] > 0:
+        centre1 = (int(contMoments1['m10']/contMoments1['m00']), int(contMoments1['m01']/contMoments1['m00']))
+        img_circle = cv2.circle(cv_image, (centre1[0], rows - img_height + centre1[1]), 5, (0, 0, 255), -1)
+        # img_line = cv2.line(img_circle1, (0, targety), (800, targety), (0, 0, 255), 1)
+
+        centre2 = (int(contMoments2['m10']/contMoments2['m00']), int(contMoments2['m01']/contMoments2['m00']))
+        img_circle = cv2.circle(cv_image, (centre2[0], rows - img_height + centre2[1]), 5, (0, 0, 255), -1)
+        
+        avg_centre = (int((centre1[0]+centre2[0])/2), int((centre1[1]+centre2[1])/2))
+        img_circle = cv2.circle(cv_image, (avg_centre[0], rows - img_height + avg_centre[1]), 5, (0, 0, 255), -1)
         img_line = cv2.line(img_circle, (0, targety), (800, targety), (0, 0, 255), 1)
-        cv2.imshow("Circle Image",img_circle)
+        
+        cv2.imshow("Circle Image",img_line)
         cv2.waitKey(3)
 
+
         # Use PID control to determine the rotation and speed of the vehicle
-        move.angular.z = pid(self, kpx, kix, kdx, targetx, centre[0], self.errSumX, self.lastErrX, self.lastTimeX, saturationx, 'x')
-        move.linear.x = pid(self, kpy, kiy, kdy, targety, centre[1], self.errSumY, self.lastErrY, self.lastTimeY, saturationy, 'y')
+        move.angular.z = pid(self, kpx, kix, kdx, targetx, avg_centre[0], self.errSumX, self.lastErrX, self.lastTimeX, saturationx, 'x')
+        move.linear.x = pid(self, kpy, kiy, kdy, targety, avg_centre[1], self.errSumY, self.lastErrY, self.lastTimeY, saturationy, 'y')
 
         self.timeout = 0
+
+
+
+      # elif contMoments1['m00'] == 0:
+      #   #TODO: change state to ___
+
+      # elif contMoments2['m00'] == 0:
+      #   #TODO: state change 
+
+
+
       else:
         self.timeout += 1
 
         if self.timeout > 3:
           done = True
 
+    elif len(contours) == 1:
+      #TODO: state change (one line)
+      _ = 0 #to delete
+
     # if the line is not detected
+    # If the camera loses the line then go slowly with the last rotation determined from PID
     else:
-      # If the camera loses the line then go slowly with the last rotation determined from PID
       move.linear.x = 0.75
       move.angular.z = self.lastOutput
       print("Lost line")
