@@ -84,13 +84,13 @@ class image_converter:
     try:
       rate = rospy.Rate(5)
       move = Twist()
-      move.linear.x = 0
+      move.linear.x = 0.01
       
       #Controller values
       tol = 40
       P_turn_scale = 0.01
       P_move_scale = 0.002
-      error = (400 - line_x)
+      error = (cols/2 - line_x)
 
       #P controllerer
       if(abs(error) > tol):
