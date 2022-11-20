@@ -33,14 +33,18 @@ def pid(self, kp, ki, kd, target, current, errSum, lastErr, lastTime, saturation
     output = saturation
 
   # remember the necessary terms for the next loop
-  if(axis == 'x'):
-    self.lastErrX = error
-    self.lastTimeX = now
-    self.lastOutputX = output
-  elif(axis == 'y'):
-    self.lastErrY = error
-    self.lastTimeY = now
-    self.lastOutputY = output
+  if(axis == 'NormAng'):
+    self.lastErrNormAng = error
+    self.lastTimeNormAng = now
+    self.LastOutputNormAng = output
+  elif(axis == 'NormLine'):
+    self.LastErrNormLine = error
+    self.LastTimeNormLine = now
+    self.LastOutputNormLine = output
+  elif(axis == 'OneAng'):
+    self.LastErrOneAng = error
+    self.LastTimeOneAng = now
+    self.LastOutputOneAng = output
 
   print("Desired output: " + str(target) + "\tPosition: " + str(current) + "\tOutput: " + str(output))
   return output
@@ -54,14 +58,18 @@ class image_converter:
     self.drive_pub = rospy.Publisher("/R1/cmd_vel", Twist, queue_size=1)
 
     # Variables for PID control
-    self.lastTimeX = time.time()
-    self.lastErrX = 0
-    self.errSumX = 0
-    self.lastOutputX = 0
-    self.lastTimeY = time.time()
-    self.lastErrY = 0
-    self.errSumY = 0
-    self.lastOutputY = 0
+    self.lastTimeNormAng = time.time()
+    self.lastErrNormAng = 0
+    self.errSumNormAng = 0
+    self.LastOutputNormAng = 0
+    self.LastTimeNormLine = time.time()
+    self.LastErrNormLine = 0
+    self.errSumNormLine = 0
+    self.LastOutputNormLine = 0
+    self.LastTimeOneAng = time.time()
+    self.LastErrOneAng = 0
+    self.errSumOneAng = 0
+    self.LastOutputOneAng = 0
 
   def callback(self, data):
     try:
@@ -71,24 +79,28 @@ class image_converter:
 
     # Constants
     (rows,cols,channels) = cv_image.shape
-    img_height = 200
+    crop_height = 200
     move = Twist()
     gaussianKernel = (11, 11)
     threshold = 220
-    kpx = 0.02
-    kix = 0
-    kdx = 0.00001
-    saturationx = 1
-    targetx = int(cols/2)
-    kpy = 0.05
-    kiy = 0
-    kdy = 0
-    saturationy = 1
-    targety = rows-150
+    kpAng = 0.02
+    kiAng = 0
+    kdAng = 0.00001
+    saturationAng = 2
+    targetAng = int(cols/2)
+    kpLine = 0.0005
+    kiLine = 0
+    kdLine = 0
+    saturationLine = 1
+    targetLine = rows-100
+    kpAngOne =0.06
+    kiAngOne = 0
+    kdAngOne = 0.00001
+    saturationAngOne = 2
 
 
     # slice bottom portion of image
-    img_bot = cv_image[rows - img_height:,:]
+    img_bot = cv_image[rows - crop_height:,:]
     # Convert the frame to a different grayscale
     img_gray = cv2.cvtColor(img_bot, cv2.COLOR_RGB2GRAY)
     # Blur image to reduce noise
@@ -123,24 +135,26 @@ class image_converter:
       contMoments2 = cv2.moments(maxContour2)
     # Check if the contour contains any pixels
       if contMoments1['m00'] > 0 and contMoments2['m00'] > 0:
+
         centre1 = (int(contMoments1['m10']/contMoments1['m00']), int(contMoments1['m01']/contMoments1['m00']))
-        img_circle = cv2.circle(cv_image, (centre1[0], rows - img_height + centre1[1]), 5, (0, 0, 255), -1)
-        # img_line = cv2.line(img_circle1, (0, targety), (800, targety), (0, 0, 255), 1)
+        img_circle = cv2.circle(cv_image, (centre1[0], rows - crop_height + centre1[1]), 5, (0, 0, 255), -1)
+        # img_line = cv2.line(img_circle1, (0, targetLine), (800, targetLine), (0, 0, 255), 1)
 
         centre2 = (int(contMoments2['m10']/contMoments2['m00']), int(contMoments2['m01']/contMoments2['m00']))
-        img_circle = cv2.circle(cv_image, (centre2[0], rows - img_height + centre2[1]), 5, (0, 0, 255), -1)
+        img_circle = cv2.circle(cv_image, (centre2[0], rows - crop_height + centre2[1]), 5, (0, 0, 255), -1)
         
         avg_centre = (int((centre1[0]+centre2[0])/2), int((centre1[1]+centre2[1])/2))
-        img_circle = cv2.circle(cv_image, (avg_centre[0], rows - img_height + avg_centre[1]), 5, (0, 0, 255), -1)
-        img_line = cv2.line(img_circle, (0, targety), (800, targety), (0, 0, 255), 1)
+        img_circle = cv2.circle(cv_image, (avg_centre[0], rows - crop_height + avg_centre[1]), 5, (0, 0, 255), -1)
+        img_line = cv2.line(img_circle, (0, targetLine), (cols, targetLine), (0, 0, 255), 1)
+        img_line = cv2.line(img_line, (targetAng, 0), (targetAng, rows), (0, 0, 255), 1)
         
         cv2.imshow("Circle Image",img_line)
         cv2.waitKey(3)
 
 
         # Use PID control to determine the rotation and speed of the vehicle
-        move.angular.z = pid(self, kpx, kix, kdx, targetx, avg_centre[0], self.errSumX, self.lastErrX, self.lastTimeX, saturationx, 'x')
-        move.linear.x = pid(self, kpy, kiy, kdy, targety, avg_centre[1], self.errSumY, self.lastErrY, self.lastTimeY, saturationy, 'y')
+        move.angular.z = pid(self, kpAng, kiAng, kdAng, targetAng, avg_centre[0], self.errSumNormAng, self.lastErrNormAng, self.lastTimeNormAng, saturationAng, 'NormAng')
+        move.linear.x = pid(self, kpLine, kiLine, kdLine, targetLine, avg_centre[1], self.errSumNormLine, self.LastErrNormLine, self.LastTimeNormLine, saturationLine, 'NormLine')
 
         self.timeout = 0
 
@@ -162,13 +176,37 @@ class image_converter:
 
     elif len(contours) == 1:
       #TODO: state change (one line)
-      _ = 0 #to delete
+      # _ = 0 #to delete
+      side_Offset = 400
+
+      maxCont = max(contours, key=cv2.contourArea)
+      contMoments = cv2.moments(maxCont)
+      contCentre = (int(contMoments['m10']/contMoments['m00']), int(contMoments['m01']/contMoments['m00']))
+
+      if contCentre[0] < int(cols/2):
+        centre = (contCentre[0] + side_Offset, contCentre[1])
+      elif contCentre[0] > int(cols/2):
+        centre = (contCentre[0] - side_Offset, contCentre[1])
+      else:
+        centre = contCentre
+
+      img_circle = cv2.circle(cv_image, (centre[0], rows - crop_height + centre[1]), 5, (0, 0, 255), -1)
+      img_line = cv2.line(img_circle, (0, targetLine), (cols, targetLine), (0, 0, 255), 1)
+      img_line = cv2.line(img_line, (targetAng, 0), (targetAng, rows), (0, 0, 255), 1)
+      cv2.imshow("Circle Image",img_line)
+      cv2.waitKey(3)
+
+      # Use PID control to determine the rotation and speed of the vehicle
+      move.angular.z = pid(self, kpAngOne, kiAngOne, kdAngOne, targetAng, centre[0], self.errSumOneAng, self.LastErrOneAng, self.LastTimeOneAng, saturationAngOne, 'OneAng')
+      # move.linear.x = pid(self, kpLine, kiLine, kdLine, targetLine, centre[1], self.errSumNormLine, self.LastErrNormLine, self.LastTimeNormLine, saturationLine, 'y')
+      move.linear.x = 0.5
+      print("Lost line")
 
     # if the line is not detected
     # If the camera loses the line then go slowly with the last rotation determined from PID
     else:
       move.linear.x = 0.75
-      move.angular.z = self.lastOutput
+      move.angular.z = self.LastOutputNormLine
       print("Lost line")
 
       self.timeout += 1
