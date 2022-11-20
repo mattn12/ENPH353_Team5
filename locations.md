@@ -17,6 +17,12 @@ source ~/ros_ws/devel/setup.bash
 rosrun adeept_awr_gazebo <controller code name>.py
 ```
 
+## Score tracker
+```
+source ~/ros_ws/devel/setup.bash 
+rosrun enph353_utils score_tracker.py 
+```
+
 ## Location of License Plate png
 `
 ~/ENPH353-Team5/ros_ws/src/2022_competition/enph353/enph353_gazebo/scripts/blank_plate.png
