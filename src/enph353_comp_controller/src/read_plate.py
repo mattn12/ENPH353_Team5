@@ -79,21 +79,21 @@ class image_converter:
     # draw lines for matching keypoint
     matching = cv2.drawMatches(img,kp_img,gray,kp_gray,good_points,gray)
 
-    # Homography
-    query_pts = np.float32([kp_img[m.queryIdx].pt for m in good_points]).reshape(-1, 1, 2)
-    train_pts = np.float32([kp_gray[m.trainIdx].pt for m in good_points]).reshape(-1, 1, 2)
-    matrix, mask = cv2.findHomography(query_pts, train_pts, cv2.RANSAC, 5.0)
-    #matches_mask = mask.ravel().tolist()
+    # # Homography
+    # query_pts = np.float32([kp_img[m.queryIdx].pt for m in good_points]).reshape(-1, 1, 2)
+    # train_pts = np.float32([kp_gray[m.trainIdx].pt for m in good_points]).reshape(-1, 1, 2)
+    # matrix, mask = cv2.findHomography(query_pts, train_pts, cv2.RANSAC, 5.0)
+    # #matches_mask = mask.ravel().tolist()
 
-    # Perspective transform
-    h, w = img.shape[0:2]
-    pts = np.float32([[0, 0], [0, h], [w, h], [w, 0]]).reshape(-1, 1, 2)
-    dst = cv2.perspectiveTransform(pts, matrix)
+    # # Perspective transform
+    # h, w = img.shape[0:2]
+    # pts = np.float32([[0, 0], [0, h], [w, h], [w, 0]]).reshape(-1, 1, 2)
+    # dst = cv2.perspectiveTransform(pts, matrix)
 
-    #draw lines around object
-    homography = cv2.polylines(cv_image, [np.int32(dst)], True, (0, 255, 0), 3)
+    # #draw lines around object
+    # homography = cv2.polylines(cv_image, [np.int32(dst)], True, (0, 255, 0), 3)
 
-    cv2.imshow("Circle Image",homography)
+    cv2.imshow("Circle Image",matching)
     cv2.waitKey(3)
 
     plate_num = 1
@@ -102,25 +102,25 @@ class image_converter:
 
 
 
-    # # Code for starting the timer/sending plates
+    # Code for starting the timer/sending plates
 
-    # if self.startRun:
-    #     output = str('Team5,password,0,ABCD')
-    #     self.startRun = False
+    if self.startRun:
+        output = str('Team5,password,0,ABCD')
+        self.startRun = False
 
-    # # Test code
-    # elif self.testPlate:
-    #     output = str('Team5,password,{},{}').format(plate_num,plate)
-    #     self.testPlate = False
+    # Test code
+    elif self.testPlate:
+        output = str('Team5,password,{},{}').format(plate_num,plate)
+        self.testPlate = False
 
-    # else:
-    #     output = ''
+    else:
+        output = ''
     
 
-    # try:
-    #   self.license_pub.publish(output)
-    # except CvBridgeError as e:
-    #   print(e)
+    try:
+      self.license_pub.publish(output)
+    except CvBridgeError as e:
+      print(e)
 
 def main(args):
   ic = image_converter()

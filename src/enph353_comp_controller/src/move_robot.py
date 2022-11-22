@@ -56,6 +56,7 @@ class image_converter:
     self.bridge = CvBridge()
     self.image_sub = rospy.Subscriber("/R1/pi_camera/image_raw",Image,self.callback)
     self.drive_pub = rospy.Publisher("/R1/cmd_vel", Twist, queue_size=1)
+    self.license_pub = rospy.Publisher("/license_plate", String, queue_size=1)
 
     # Variables for PID control
     self.lastTimeNormAng = time.time()
@@ -70,6 +71,11 @@ class image_converter:
     self.LastErrOneAng = 0
     self.errSumOneAng = 0
     self.LastOutputOneAng = 0
+
+    self.timeout = 0
+
+    self.startRun = True
+    self.endRun = False
 
   def callback(self, data):
     try:
@@ -97,6 +103,29 @@ class image_converter:
     kiAngOne = 0
     kdAngOne = 0.00001
     saturationAngOne = 2
+
+
+    # Code for starting the timer/sending plates
+
+    if self.startRun:
+        output = str('Team5,password,0,ABCD')
+        self.startRun = False
+
+        try:
+          self.license_pub.publish(output)
+        except CvBridgeError as e:
+          print(e)
+
+    # Test code
+    # elif self.testPlate:
+    #     output = str('Team5,password,{},{}').format(plate_num,plate)
+    #     self.testPlate = False
+
+    # else:
+    #     output = ''
+    
+    
+
 
 
     # slice bottom portion of image
