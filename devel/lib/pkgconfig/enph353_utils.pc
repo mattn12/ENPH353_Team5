@@ -1,8 +1,0 @@
-prefix=/home/fizzer/ros_ws/devel
-
-Name: enph353_utils
-Description: Description of enph353_utils
-Version: 0.0.2
-Cflags: 
-Libs: -L${prefix}/lib 
-Requires: actionlib_msgs

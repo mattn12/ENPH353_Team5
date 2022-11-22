@@ -137,8 +137,12 @@ class image_converter:
     # Binarize the image
     _, img_bin = cv2.threshold(img_blur, threshold, 255, cv2.THRESH_BINARY)
     cv2.imshow("Binary Image", img_bin)
+    # Do more image processing to remove noise
+    img_ero = cv2.erode(img_bin, None, iterations = 2)
+    img_dil = cv2.dilate(img_ero, None, iterations = 2)
+    cv2.imshow("Noise Suppressed", img_dil)
     # Find the contours of the image
-    contours, _ = cv2.findContours(img_bin, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+    contours, _ = cv2.findContours(img_dil, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
     # Overlay the contours onto the original image
     # img_cont = cv2.drawContours(cv_image, contours, -1, (0, 0, 0), 1)
 
