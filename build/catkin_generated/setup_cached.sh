@@ -7,6 +7,6 @@
 # new environment variables
 
 # modified environment variables
-export CMAKE_PREFIX_PATH="/home/matthew/ros_ws/build/devel:$CMAKE_PREFIX_PATH"
-export ROSLISP_PACKAGE_DIRECTORIES='/home/matthew/ros_ws/build/devel/share/common-lisp'
-export ROS_PACKAGE_PATH="/home/matthew/ros_ws/src:$ROS_PACKAGE_PATH"
+export CMAKE_PREFIX_PATH="/home/fizzer/ros_ws/build/devel:$CMAKE_PREFIX_PATH"
+export ROSLISP_PACKAGE_DIRECTORIES="/home/fizzer/ros_ws/build/devel/share/common-lisp:$ROSLISP_PACKAGE_DIRECTORIES"
+export ROS_PACKAGE_PATH="/home/fizzer/ros_ws/src:$ROS_PACKAGE_PATH"
