@@ -1,8 +1,0 @@
-prefix=/home/fizzer/ros_ws/devel
-
-Name: adeept_awr_gazebo
-Description: Description of adeept_awr_gazebo
-Version: 0.0.0
-Cflags: 
-Libs: -L${prefix}/lib 
-Requires: 

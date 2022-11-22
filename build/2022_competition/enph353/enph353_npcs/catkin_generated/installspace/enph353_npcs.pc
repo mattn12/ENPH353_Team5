@@ -1,8 +1,0 @@
-prefix=/usr/local
-
-Name: enph353_npcs
-Description: Description of enph353_npcs
-Version: 0.0.0
-Cflags: 
-Libs: -L${prefix}/lib 
-Requires: 
