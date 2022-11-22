@@ -1,2 +1,0 @@
-2022_competition/adeept_awr/adeept_awr:2022_competition/adeept_awr/adeept_awr_description:2022_competition/adeept_awr/adeept_awr_gazebo:2022_competition/adeept_awr_ros_driver:2022_competition/enph353/enph353:2022_competition/enph353/enph353_gazebo:2022_competition/enph353/enph353_npcs:2022_competition/enph353/enph353_utils:enph353_comp_controller
--DCATKIN_DEVEL_PREFIX=/home/fizzer/ros_ws/devel -DCMAKE_INSTALL_PREFIX=/home/fizzer/ros_ws/install -G Unix Makefiles
