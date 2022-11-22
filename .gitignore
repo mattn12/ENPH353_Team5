@@ -1,2 +1,9 @@
+src/2022_competition/enph353/enph353_gazebo/media/materials/textures/labelled/*
+src/2022_competition/enph353/enph353_gazebo/media/materials/textures/unlabelled/*
+src/2022_competition/enph353/enph353_gazebo/nodes/*.csv
+src/2022_competition/enph353/enph353_gazebo/scripts/QRCode_*.png
+src/2022_competition/enph353/enph353_gazebo/scripts/plates.csv
+src/2022_competition/enph353/enph353_utils/scripts/*.txt
 build/
+src/2022_competition/enph353/enph353_gazebo/scripts/
 devel/
