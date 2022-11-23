@@ -82,7 +82,7 @@ class image_converter:
     self.endRun = False
 
   def callback(self, data):
-    if data == "cross_walk":
+    # if data == "cross_walk":
       
       # elif self.currentState == "cross_walk":
       #     self.run_cross_walk(self)
