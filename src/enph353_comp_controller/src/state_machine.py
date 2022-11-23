@@ -54,7 +54,7 @@ class state_machine:
 def main(args):
   
   rospy.init_node('state_machine', anonymous=True)
-  sm = state_machine()
+  sm = robot_driver()
   
   try:
     rospy.spin()
