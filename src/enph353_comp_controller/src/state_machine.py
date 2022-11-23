@@ -1,5 +1,15 @@
-import move_robot
-import read_plate
+#!/usr/bin/env python3
+from __future__ import print_function
+
+import cv2
+import sys
+import numpy as np
+
+import roslib
+import rospy
+
+from move_robot import robot_driver
+from read_plate import plate_reader
 
 class state_machine:
 
@@ -15,3 +25,17 @@ class state_machine:
 
     # def run(self):
     #     while True:
+
+def main(args):
+  
+  rospy.init_node('plate_reader', anonymous=True)
+  rd = robot_driver()
+  
+  try:
+    rospy.spin()
+  except KeyboardInterrupt:
+    print("Shutting down")
+  cv2.destroyAllWindows()
+
+if __name__ == '__main__':
+    main(sys.argv)

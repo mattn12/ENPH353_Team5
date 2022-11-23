@@ -49,7 +49,21 @@ def pid(self, kp, ki, kd, target, current, errSum, lastErr, lastTime, saturation
   print("Desired output: " + str(target) + "\tPosition: " + str(current) + "\tOutput: " + str(output))
   return output
 
-class image_converter:
+def reset_variables(self):
+  
+  self.lastErrNormAng = 0
+  self.errSumNormAng = 0
+  self.LastOutputNormAng = 0
+
+  self.LastErrNormLine = 0
+  self.errSumNormLine = 0
+  self.LastOutputNormLine = 0
+  
+  self.LastErrOneAng = 0
+  self.errSumOneAng = 0
+  self.LastOutputOneAng = 0
+
+class robot_driver:
 
   def __init__(self):
     # Variables for subscribing and publishing
@@ -72,10 +86,12 @@ class image_converter:
     self.errSumOneAng = 0
     self.LastOutputOneAng = 0
 
+    # Timing variables
     self.timeout = 0
 
     self.startRun = True
     self.endRun = False
+
 
   def callback(self, data):
     try:
@@ -83,49 +99,29 @@ class image_converter:
     except CvBridgeError as e:
       print(e)
 
+
+    
+
     # Constants
     (rows,cols,channels) = cv_image.shape
     crop_height = 200
     move = Twist()
     gaussianKernel = (11, 11)
     threshold = 220
-    kpAng = 0.02
+    kpAng = 0.015
     kiAng = 0
     kdAng = 0.00001
     saturationAng = 2
     targetAng = int(cols/2)
-    kpLine = 0.0005
+    kpLine = 0.0004
     kiLine = 0
     kdLine = 0
     saturationLine = 1
     targetLine = rows-100
-    kpAngOne =0.06
+    kpAngOne = 0.05
     kiAngOne = 0
     kdAngOne = 0.00001
     saturationAngOne = 2
-
-
-    # Code for starting the timer/sending plates
-
-    if self.startRun:
-        output = str('Team5,password,0,ABCD')
-        self.startRun = False
-
-        try:
-          self.license_pub.publish(output)
-        except CvBridgeError as e:
-          print(e)
-
-    # Test code
-    # elif self.testPlate:
-    #     output = str('Team5,password,{},{}').format(plate_num,plate)
-    #     self.testPlate = False
-
-    # else:
-    #     output = ''
-    
-    
-
 
 
     # slice bottom portion of image
@@ -136,15 +132,53 @@ class image_converter:
     img_blur = cv2.GaussianBlur(img_gray, gaussianKernel, 0)
     # Binarize the image
     _, img_bin = cv2.threshold(img_blur, threshold, 255, cv2.THRESH_BINARY)
-    cv2.imshow("Binary Image", img_bin)
+    # cv2.imshow("Binary Image", img_bin)
+
     # Do more image processing to remove noise
     img_ero = cv2.erode(img_bin, None, iterations = 2)
     img_dil = cv2.dilate(img_ero, None, iterations = 2)
-    cv2.imshow("Noise Suppressed", img_dil)
+    # cv2.imshow("Noise Suppressed", img_dil)
+
     # Find the contours of the image
     contours, _ = cv2.findContours(img_dil, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
     # Overlay the contours onto the original image
     # img_cont = cv2.drawContours(cv_image, contours, -1, (0, 0, 0), 1)
+
+    def stop_robot(event):
+      output = str('Team5,password,-1,ABCD')
+      move.angular.z = 0
+      move.linear.x = 0
+      reset_variables(self)
+      try:
+        self.license_pub.publish(output)
+        self.drive_pub.publish(move)
+      except CvBridgeError as e:
+        print(e)
+
+      self.endRun = True
+
+      print("Stopped robot")
+      rospy.signal_shutdown("Timer ended.")
+
+      
+
+    # start the timer
+    if self.startRun:
+      output = str('Team5,password,0,ABCD')
+      self.startRun = False
+    
+      try:
+        self.license_pub.publish(output)
+        rospy.sleep(0.5)
+      except CvBridgeError as e:
+        print(e)
+        
+      rospy.Timer(rospy.Duration(10),stop_robot)
+
+
+    
+
+      
 
 
     # Check that contours contains at least one contour then on the largest contour, find the centre of its centre
@@ -181,8 +215,8 @@ class image_converter:
         img_line = cv2.line(img_circle, (0, targetLine), (cols, targetLine), (0, 0, 255), 1)
         img_line = cv2.line(img_line, (targetAng, 0), (targetAng, rows), (0, 0, 255), 1)
         
-        cv2.imshow("Circle Image",img_line)
-        cv2.waitKey(3)
+        # cv2.imshow("Circle Image",img_line)
+        # cv2.waitKey(3)
 
 
         # Use PID control to determine the rotation and speed of the vehicle
@@ -209,7 +243,6 @@ class image_converter:
 
     elif len(contours) == 1:
       #TODO: state change (one line)
-      # _ = 0 #to delete
       side_Offset = 400
 
       maxCont = max(contours, key=cv2.contourArea)
@@ -226,8 +259,8 @@ class image_converter:
       img_circle = cv2.circle(cv_image, (centre[0], rows - crop_height + centre[1]), 5, (0, 0, 255), -1)
       img_line = cv2.line(img_circle, (0, targetLine), (cols, targetLine), (0, 0, 255), 1)
       img_line = cv2.line(img_line, (targetAng, 0), (targetAng, rows), (0, 0, 255), 1)
-      cv2.imshow("Circle Image",img_line)
-      cv2.waitKey(3)
+      # cv2.imshow("Circle Image",img_line)
+      # cv2.waitKey(3)
 
       # Use PID control to determine the rotation and speed of the vehicle
       move.angular.z = pid(self, kpAngOne, kiAngOne, kdAngOne, targetAng, centre[0], self.errSumOneAng, self.LastErrOneAng, self.LastTimeOneAng, saturationAngOne, 'OneAng')
@@ -238,8 +271,8 @@ class image_converter:
     # if the line is not detected
     # If the camera loses the line then go slowly with the last rotation determined from PID
     else:
-      move.linear.x = 0.75
-      move.angular.z = self.LastOutputNormLine
+      move.linear.x = -0.2
+      move.angular.z = 3*self.LastOutputNormLine
       print("Lost line")
 
       self.timeout += 1
@@ -250,22 +283,24 @@ class image_converter:
     # cv2.waitKey(3)
 
     # Try to publish the movement to the robot, if not display the error
-    try:
-      self.drive_pub.publish(move)
-      print("Published")
- 
-    except CvBridgeError as e:
-      print(e)
+    if not self.endRun: 
+      try:
+        self.drive_pub.publish(move)
+        print(str('Published: LinX = {}, AngZ = {}').format(move.linear.x,move.angular.z))
+  
+      except CvBridgeError as e:
+        print(e)
 
 
 def main(args):
-  ic = image_converter()
-  rospy.init_node('image_converter', anonymous=True)
+  rospy.init_node('robot_driver', anonymous=True)
+  rd = robot_driver()
   try:
     rospy.spin()
   except KeyboardInterrupt:
     print("Shutting down")
   cv2.destroyAllWindows()
+  rospy.signal_shutdown("Keyboard interrupt")
 
 if __name__ == '__main__':
     main(sys.argv)

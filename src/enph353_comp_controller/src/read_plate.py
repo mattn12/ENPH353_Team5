@@ -17,13 +17,14 @@ from std_msgs.msg import String
 
 import os
 
-class image_converter:
+class plate_reader:
 
   def __init__(self):
     # Variables for subscribing and publishing
     self.bridge = CvBridge()
     self.image_sub = rospy.Subscriber("/R1/pi_camera/image_raw",Image,self.callback)
     self.license_pub = rospy.Publisher("/license_plate", String, queue_size=1)
+    
 
     self.startRun = True
     self.testPlate = True
@@ -37,11 +38,27 @@ class image_converter:
     # Constants
     matching_tol = 0.9
     img_height = 400
-    threshold = 8
+    threshold = 10
     sharpen_kernel = np.array([[0,-1,0],[-1,5,-1],[0,-1,0]])
     gaussianKernel = (5, 5)
     dilate_kernel = np.ones((5,5))
     
+    def stop_robot(event):
+      output = str('Team5,password,-1,ABCD')
+      try:
+        self.license_pub.publish(output)
+        rospy.sleep(0.5)
+      except CvBridgeError as e:
+        print(e)
+
+      print("Stopping robot")
+      rospy.signal_shutdown("Timer ended.")
+
+   
+
+
+
+    # get image from robot camera
     (rows,cols,channels) = cv_image.shape
 
     img_crop = cv_image[rows - img_height:,:]
@@ -112,31 +129,25 @@ class image_converter:
     plate = 'WXYZ'
 
 
+    # start the timer
+    if self.startRun:
+      output = str('Team5,password,0,ABCD')
+      self.startRun = False
 
+      try:
+        self.license_pub.publish(output)
+        rospy.sleep(0.5)
+      except CvBridgeError as e:
+        print(e)
+        
+      rospy.Timer(rospy.Duration(10),stop_robot)
 
-    # # Code for starting the timer/sending plates
-
-    # if self.startRun:
-    #     output = str('Team5,password,0,ABCD')
-    #     self.startRun = False
-
-    # # Test code
-    # elif self.testPlate:
-    #     output = str('Team5,password,{},{}').format(plate_num,plate)
-    #     self.testPlate = False
-
-    # else:
-    #     output = ''
-    
-
-    # try:
-    #   self.license_pub.publish(output)
-    # except CvBridgeError as e:
-    #   print(e)
 
 def main(args):
-  ic = image_converter()
-  rospy.init_node('image_converter', anonymous=True)
+  
+  rospy.init_node('plate_reader', anonymous=True)
+  ic = plate_reader()
+  
   try:
     rospy.spin()
   except KeyboardInterrupt:
