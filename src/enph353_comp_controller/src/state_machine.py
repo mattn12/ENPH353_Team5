@@ -19,7 +19,6 @@ class state_machine:
   def __init__(self):
       self.states = {"drive", "cross_walk", "found_car"}
       self.currentState = "drive"
-      self.ic = image_converter()
 
 
   def state_change(self, state):
@@ -54,8 +53,8 @@ class state_machine:
 
 def main(args):
   
-  rospy.init_node('plate_reader', anonymous=True)
-  rd = robot_driver()
+  rospy.init_node('state_machine', anonymous=True)
+  sm = state_machine()
   
   try:
     rospy.spin()
