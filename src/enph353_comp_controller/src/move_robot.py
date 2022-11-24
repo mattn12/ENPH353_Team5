@@ -6,10 +6,10 @@ import sys
 import rospy
 import cv2
 import time
-from std_msgs.msg import String
-from sensor_msgs.msg import Image
-from cv_bridge import CvBridge, CvBridgeError
-from geometry_msgs.msg import Twist
+# from std_msgs.msg import String
+# from sensor_msgs.msg import Image
+# from cv_bridge import CvBridge, CvBridgeError
+# from geometry_msgs.msg import Twist
 
 
 # PID control loop to find the linear and rotational movement of the robot based off of this website: http://brettbeauregard.com/blog/2011/04/improving-the-beginners-pid-introduction/
@@ -46,7 +46,7 @@ def pid(self, kp, ki, kd, target, current, errSum, lastErr, lastTime, saturation
     self.LastTimeOneAng = now
     self.LastOutputOneAng = output
 
-  print("Desired output: " + str(target) + "\tPosition: " + str(current) + "\tOutput: " + str(output))
+  print("Type: " + axis + "\tDesired output: " + str(target) + "\tPosition: " + str(current) + "\tOutput: " + str(output))
   return output
 
 def reset_variables(self):
@@ -66,11 +66,6 @@ def reset_variables(self):
 class robot_driver:
 
   def __init__(self):
-    # Variables for subscribing and publishing
-    self.bridge = CvBridge()
-    self.image_sub = rospy.Subscriber("/R1/pi_camera/image_raw",Image,self.callback)
-    self.drive_pub = rospy.Publisher("/R1/cmd_vel", Twist, queue_size=1)
-    self.license_pub = rospy.Publisher("/license_plate", String, queue_size=1)
 
     # Variables for PID control
     self.lastTimeNormAng = time.time()
@@ -87,25 +82,22 @@ class robot_driver:
     self.LastOutputOneAng = 0
 
     # Timing variables
-    self.timeout = 0
+    # self.startRun = True
+    # self.endRun = False
 
-    self.startRun = True
-    self.endRun = False
-
-
-  def callback(self, data):
-    try:
-      cv_image = self.bridge.imgmsg_to_cv2(data, "bgr8")
-    except CvBridgeError as e:
-      print(e)
+    # Other Variables
+    self.move = (0.0, 0.0)
+    # self.lastmove = (0.0, 0.0)
 
 
-    
 
+  def run_drive(self, cv_image):
     # Constants
+    state = "drive"
     (rows,cols,channels) = cv_image.shape
     crop_height = 200
-    move = Twist()
+    # Speed(forward/back, angular)
+    self.move = (0.0, 0.0)
     gaussianKernel = (11, 11)
     threshold = 220
     kpAng = 0.015
@@ -123,66 +115,40 @@ class robot_driver:
     kdAngOne = 0.00001
     saturationAngOne = 2
 
+    ## Check the state
+    state = self.state_change(cv_image)
+    if state != "drive":
+      return state, (0.0,0.0)
+
+    ## Image Processing
+
+    processed_img = self.process_img(cv_image)
+    #todo Determine if we need to change state
+
 
     # slice bottom portion of image
-    img_bot = cv_image[rows - crop_height:,:]
-    # Convert the frame to a different grayscale
-    img_gray = cv2.cvtColor(img_bot, cv2.COLOR_RGB2GRAY)
-    # Blur image to reduce noise
-    img_blur = cv2.GaussianBlur(img_gray, gaussianKernel, 0)
-    # Binarize the image
-    _, img_bin = cv2.threshold(img_blur, threshold, 255, cv2.THRESH_BINARY)
+    img_bot = processed_img[rows - crop_height:,:]
+    # # Convert the frame to a different grayscale
+    # img_gray = cv2.cvtColor(img_bot, cv2.COLOR_RGB2GRAY)
+    # # Blur image to reduce noise
+    # img_blur = cv2.GaussianBlur(img_gray, gaussianKernel, 0)
+    # # Binarize the image
+    # _, img_bin = cv2.threshold(img_blur, threshold, 255, cv2.THRESH_BINARY)
     # cv2.imshow("Binary Image", img_bin)
+    # cv2.waitKey(3)
 
-    # Do more image processing to remove noise
-    img_ero = cv2.erode(img_bin, None, iterations = 2)
-    img_dil = cv2.dilate(img_ero, None, iterations = 2)
-    # cv2.imshow("Noise Suppressed", img_dil)
+    # # Do more image processing to remove noise
+    # img_ero = cv2.erode(img_bin, None, iterations = 2)
+    # img_dil = cv2.dilate(img_ero, None, iterations = 2)
+    # # cv2.imshow("Noise Suppressed", img_dil)
 
     # Find the contours of the image
-    contours, _ = cv2.findContours(img_dil, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+    contours, _ = cv2.findContours(img_bot, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
     # Overlay the contours onto the original image
     # img_cont = cv2.drawContours(cv_image, contours, -1, (0, 0, 0), 1)
 
-    def stop_robot(event):
-      output = str('Team5,password,-1,ABCD')
-      move.angular.z = 0
-      move.linear.x = 0
-      reset_variables(self)
-      try:
-        self.license_pub.publish(output)
-        self.drive_pub.publish(move)
-      except CvBridgeError as e:
-        print(e)
 
-      self.endRun = True
-
-      print("Stopped robot")
-      rospy.signal_shutdown("Timer ended.")
-
-      
-
-    # start the timer
-    if self.startRun:
-      output = str('Team5,password,0,ABCD')
-      self.startRun = False
-    
-      try:
-        self.license_pub.publish(output)
-        rospy.sleep(0.5)
-      except CvBridgeError as e:
-        print(e)
-        
-      rospy.Timer(rospy.Duration(10),stop_robot)
-
-
-    
-
-      
-
-
-    # Check that contours contains at least one contour then on the largest contour, find the centre of its centre
-    # Print a circle at the centre of mass on the original image
+    # If there are at least 2 contours, line follow them
     if len(contours) > 1:
       areaArray = []
       for _, c in enumerate(contours):
@@ -215,15 +181,16 @@ class robot_driver:
         img_line = cv2.line(img_circle, (0, targetLine), (cols, targetLine), (0, 0, 255), 1)
         img_line = cv2.line(img_line, (targetAng, 0), (targetAng, rows), (0, 0, 255), 1)
         
-        # cv2.imshow("Circle Image",img_line)
-        # cv2.waitKey(3)
+        cv2.imshow("Circle Image",img_line)
+        cv2.waitKey(3)
 
 
         # Use PID control to determine the rotation and speed of the vehicle
-        move.angular.z = pid(self, kpAng, kiAng, kdAng, targetAng, avg_centre[0], self.errSumNormAng, self.lastErrNormAng, self.lastTimeNormAng, saturationAng, 'NormAng')
-        move.linear.x = pid(self, kpLine, kiLine, kdLine, targetLine, avg_centre[1], self.errSumNormLine, self.LastErrNormLine, self.LastTimeNormLine, saturationLine, 'NormLine')
+        angular = pid(self, kpAng, kiAng, kdAng, targetAng, avg_centre[0], self.errSumNormAng, self.lastErrNormAng, self.lastTimeNormAng, saturationAng, 'NormAng')
+        linear = pid(self, kpLine, kiLine, kdLine, targetLine, avg_centre[1], self.errSumNormLine, self.LastErrNormLine, self.LastTimeNormLine, saturationLine, 'NormLine')
+        self.move = (linear, angular)
 
-        self.timeout = 0
+        
 
 
 
@@ -234,13 +201,11 @@ class robot_driver:
       #   #TODO: state change 
 
 
-
+      # The area of a contour is zero
       else:
-        self.timeout += 1
+        print("Line's Area is zero")
 
-        if self.timeout > 3:
-          done = True
-
+    # There is one contour, follow it
     elif len(contours) == 1:
       #TODO: state change (one line)
       side_Offset = 400
@@ -263,33 +228,54 @@ class robot_driver:
       # cv2.waitKey(3)
 
       # Use PID control to determine the rotation and speed of the vehicle
-      move.angular.z = pid(self, kpAngOne, kiAngOne, kdAngOne, targetAng, centre[0], self.errSumOneAng, self.LastErrOneAng, self.LastTimeOneAng, saturationAngOne, 'OneAng')
-      # move.linear.x = pid(self, kpLine, kiLine, kdLine, targetLine, centre[1], self.errSumNormLine, self.LastErrNormLine, self.LastTimeNormLine, saturationLine, 'y')
-      move.linear.x = 0.5
+      angular = pid(self, kpAngOne, kiAngOne, kdAngOne, targetAng, centre[0], self.errSumOneAng, self.LastErrOneAng, self.LastTimeOneAng, saturationAngOne, 'OneAng')
+      linear = 0.5
+      self.move = (linear, angular)
       print("Lost line")
 
     # if the line is not detected
     # If the camera loses the line then go slowly with the last rotation determined from PID
     else:
-      move.linear.x = -0.2
-      move.angular.z = 3*self.LastOutputNormLine
+      linear = -0.2
+      angular = 3*self.LastOutputNormLine
+      self.move = (linear, angular)
       print("Lost line")
 
-      self.timeout += 1
-      if self.timeout > 10:
-          done = True
+    
+    return state, self.move
 
-    # cv2.imshow("Image window", img_dot)
-    # cv2.waitKey(3)
+  def process_img(self, cv_image):
+    # Variables
+    gaussianKernel = (11, 11)
+    threshold = 220
 
-    # Try to publish the movement to the robot, if not display the error
-    if not self.endRun: 
-      try:
-        self.drive_pub.publish(move)
-        print(str('Published: LinX = {}, AngZ = {}').format(move.linear.x,move.angular.z))
+    # Convert the frame to a different grayscale
+    img_gray = cv2.cvtColor(cv_image, cv2.COLOR_RGB2GRAY)
+    # Blur image to reduce noise
+    img_blur = cv2.GaussianBlur(img_gray, gaussianKernel, 0)
+    # Binarize the image
+    _, img_bin = cv2.threshold(img_blur, threshold, 255, cv2.THRESH_BINARY)
+    # Do more image processing to remove noise
+    img_ero = cv2.erode(img_bin, None, iterations = 2)
+    img_dil = cv2.dilate(img_ero, None, iterations = 2)
+    cv2.imshow("Noise Suppressed", img_dil)
+    cv2.waitKey(3)
+
+    return img_dil
+
+  def state_change(self, img):
+    state = "drive"
+    bin_threshold = 100
+    red_threshold = 1500000
+    red_img = img[:,:,2] - 0.5 * img[:,:,0] - 0.5 * img[:,:,1]
+    _, redbin_img = cv2.threshold(red_img, bin_threshold, 255, cv2.THRESH_BINARY)
+    cv2.imshow("Red Binary", redbin_img)
+    cv2.waitKey(3)
+    print("Red Value: " + str(sum(map(sum, redbin_img))))
+    if sum(map(sum, redbin_img)) > red_threshold:
+      state = "cross_walk"
+    return state
   
-      except CvBridgeError as e:
-        print(e)
 
 
 def main(args):
