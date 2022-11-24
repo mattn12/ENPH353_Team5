@@ -36,23 +36,20 @@ class plate_reader:
       print(e)
 
     # Constants
-    matching_tol = 0.9
     img_height = 400
-    threshold = 10
-    sharpen_kernel = np.array([[0,-1,0],[-1,5,-1],[0,-1,0]])
-    gaussianKernel = (5, 5)
-    dilate_kernel = np.ones((5,5))
+    erode_kernel = np.ones((3,3))
+    dilate_kernel = np.ones((9,9))
     
-    def stop_robot(event):
-      output = str('Team5,password,-1,ABCD')
-      try:
-        self.license_pub.publish(output)
-        rospy.sleep(0.5)
-      except CvBridgeError as e:
-        print(e)
+    # def stop_robot(event):
+    #   output = str('Team5,password,-1,ABCD')
+    #   try:
+    #     self.license_pub.publish(output)
+    #     rospy.sleep(0.5)
+    #   except CvBridgeError as e:
+    #     print(e)
 
-      print("Stopping robot")
-      rospy.signal_shutdown("Timer ended.")
+    #   print("Stopping robot")
+    #   rospy.signal_shutdown("Timer ended.")
 
    
 
@@ -62,85 +59,85 @@ class plate_reader:
     (rows,cols,channels) = cv_image.shape
 
     img_crop = cv_image[rows - img_height:,:]
-    gray = cv2.cvtColor(img_crop, cv2.COLOR_BGR2GRAY)
-    # gray = img_crop[:,:,0]
-    gray = cv2.GaussianBlur(gray, (3,3), 0)
-    _, gray = cv2.threshold(gray, threshold, 255, cv2.THRESH_BINARY)
-    gray = cv2.erode(gray,dilate_kernel,iterations=1)
-    gray = cv2.filter2D(src=gray,ddepth=-1,kernel=sharpen_kernel)
+    colour_filter = cv2.cvtColor(img_crop, cv2.COLOR_BGR2LAB)[:,:,0]
+    blurred = cv2.GaussianBlur(colour_filter, (5,5), 0)
+    colour_mask = cv2.inRange(blurred,97,115)
+    reduce_noise = cv2.erode(colour_mask,erode_kernel,iterations=1)
+    reduce_noise = cv2.dilate(reduce_noise,dilate_kernel,iterations=1)
+    # gray = cv2.filter2D(src=gray,ddepth=-1,kernel=sharpen_kernel)
     
+    # find contours
+    contours, _ = cv2.findContours(reduce_noise, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE) 
+    areaArray = []
+    for _, c in enumerate(contours):
+      area = cv2.contourArea(c)
+      areaArray.append(area)
+
+    #first sort the array by area
+    sortedContours = sorted(zip(areaArray, contours), key=lambda x: x[0], reverse=True)
+
+    # draw the largest contour
+    cnt = sortedContours[0][1]
+    # cv2.drawContours(img_crop,[cnt], -1, (255, 0, 0), 1)
+
+    # referenced: https://stackoverflow.com/questions/41879315/opencv-visualize-polygonal-curves-extracted-with-cv2-approxpolydp
+    # define main island contour approx. and hull
+    perimeter = cv2.arcLength(cnt,True)
+    epsilon = 0.01*perimeter
+    approx = cv2.approxPolyDP(cnt,epsilon,True)
+    hull = cv2.convexHull(cnt)
+    # draw dots at corners
+    # cv2.drawContours(img_crop, approx, -1, (0, 0, 255), 3)
     
-    index_params = dict(algorithm=0, trees=5) 
-    search_params = dict()
-    flann = cv2.FlannBasedMatcher(index_params,search_params)
+    # sorts points from descending weighted sum (ie top left, top right, bottom left, bottom right)
+    sortedPoints = sorted(approx, key=lambda x: x[0,0]+3*x[0,1])
+    # print(approx)
+    # print(approx[0,0,0]*approx[0,0,1])
+    # print(sortedPoints)
 
-
-    # read template image
-    path = os.path.join(os.path.dirname(__file__),'just_P.png')
-    img = cv2.imread(path,0)
-
-    # make sure the path to the template image exists
-    # print(os.path.exists(path))
-    
-    # Find features of template image
-    sift = cv2.SIFT_create(contrastThreshold=0.1)
-    kp_img, desc_img = sift.detectAndCompute(img, None)
-    img = cv2.drawKeypoints(img, kp_img, img)
-
-
-    # Find features of frame image
-    kp_gray, desc_gray = sift.detectAndCompute(gray, None)
-    gray = cv2.drawKeypoints(gray, kp_gray, gray)
-
-
-    # Find matches between template and frame
-    matches = flann.knnMatch(desc_img, desc_gray, k=2)	
-    good_points = []
-    for m, n in matches:
-        if m.distance < matching_tol * n.distance:
-            good_points.append(m)
-
-
-    # draw lines for matching keypoint
-    matching = cv2.drawMatches(img,kp_img,gray,kp_gray,good_points,gray)
-
-    # Homography
-    query_pts = np.float32([kp_img[m.queryIdx].pt for m in good_points]).reshape(-1, 1, 2)
-    train_pts = np.float32([kp_gray[m.trainIdx].pt for m in good_points]).reshape(-1, 1, 2)
-    matrix, mask = cv2.findHomography(query_pts, train_pts, cv2.RANSAC, 5.0)
-    matches_mask = mask.ravel().tolist()
-    
-
-    # Perspective transform
-    h, w = img.shape[0:2]
-    pts = np.float32([[0, 0], [0, h], [w, h], [w, 0]]).reshape(-1, 1, 2)
-    dst = cv2.perspectiveTransform(pts, matrix)
-
-    #draw lines around object
-    homography = cv2.polylines(img_crop, [np.int32(dst)], True, (0, 255, 0), 3)
-
-    cv2.imshow("image1", homography)
+    cv2.imshow("image2", img_crop)
     cv2.waitKey(3)
 
-    cv2.imshow("image2", matching)
+
+    height, width = np.divide(cv_image.shape[0:2],5)
+
+    # referenced https://arccoder.medium.com/straighten-an-image-of-a-page-using-opencv-313182404b06
+    # List the output points in the same order as input
+    dstPts = [[0, 0], [width, 0], [0, height*1.5], [width, height*1.5]]
+    # Get the transform
+    m = cv2.getPerspectiveTransform(np.float32(sortedPoints), np.float32(dstPts))
+    # Transform the image
+    norm = cv2.warpPerspective(img_crop, m, (int(width), int(height)+120))
+
+    plate_height = 65
+    plate = norm[norm.shape[0]-plate_height:,:]
+
+
+
+
+    
+
+    
+
+    cv2.imshow("image1", plate)
     cv2.waitKey(3)
 
     plate_num = 1
     plate = 'WXYZ'
 
 
-    # start the timer
-    if self.startRun:
-      output = str('Team5,password,0,ABCD')
-      self.startRun = False
+    # # start the timer
+    # if self.startRun:
+    #   output = str('Team5,password,0,ABCD')
+    #   self.startRun = False
 
-      try:
-        self.license_pub.publish(output)
-        rospy.sleep(0.5)
-      except CvBridgeError as e:
-        print(e)
+    #   try:
+    #     self.license_pub.publish(output)
+    #     rospy.sleep(0.5)
+    #   except CvBridgeError as e:
+    #     print(e)
         
-      rospy.Timer(rospy.Duration(10),stop_robot)
+    #   rospy.Timer(rospy.Duration(10),stop_robot)
 
 
 def main(args):
