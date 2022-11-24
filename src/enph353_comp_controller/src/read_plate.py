@@ -38,7 +38,7 @@ class plate_reader:
     # Constants
     img_height = 400
     erode_kernel = np.ones((3,3))
-    dilate_kernel = np.ones((7,7))
+    dilate_kernel = np.ones((3,3))
     
     # def stop_robot(event):
     #   output = str('Team5,password,-1,ABCD')
@@ -59,14 +59,17 @@ class plate_reader:
     (rows,cols,channels) = cv_image.shape
 
     img_crop = cv_image[rows - img_height:,:]
-    colour_filter = img_crop[:,:,2]
+    colour_filter = cv2.cvtColor(img_crop, cv2.COLOR_BGR2HSV)
     blurred = cv2.GaussianBlur(colour_filter, (5,5), 0)
-    colour_mask = cv2.inRange(blurred,97,115)
-    reduce_noise = cv2.erode(colour_mask,erode_kernel,iterations=1)
-    reduce_noise = cv2.dilate(reduce_noise,dilate_kernel,iterations=1)
+    lower = np.array([0,0,90])
+    upper = np.array([0,0,110])
+    colour_mask = cv2.inRange(blurred,lower,upper)
+    after_mask = cv2.bitwise_and(img_crop, img_crop, mask=colour_mask)
+    # reduce_noise = cv2.erode(colour_mask,erode_kernel,iterations=1)
+    # reduce_noise = cv2.dilate(reduce_noise,dilate_kernel,iterations=1)
     
     # find contours
-    contours, _ = cv2.findContours(reduce_noise, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE) 
+    contours, _ = cv2.findContours(colour_mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE) 
     areaArray = []
     for _, c in enumerate(contours):
       area = cv2.contourArea(c)
@@ -77,6 +80,7 @@ class plate_reader:
 
     # draw the largest contour
     cnt = sortedContours[0][1]
+    area = sortedContours[0][0]
     # cv2.drawContours(img_crop,[cnt], -1, (255, 0, 0), 1)
 
     # referenced: https://stackoverflow.com/questions/41879315/opencv-visualize-polygonal-curves-extracted-with-cv2-approxpolydp
@@ -94,22 +98,36 @@ class plate_reader:
     # print(approx[0,0,0]*approx[0,0,1])
     # print(sortedPoints)
 
+
+    # cv2.imshow("image4", blurred)
+    # cv2.waitKey(3)
+    # cv2.imshow("image3", colour_mask)
+    # cv2.waitKey(3)
     cv2.imshow("image2", img_crop)
     cv2.waitKey(3)
+    
+    # print(area)
+    # if there are four corners, and we are close enough (area big enough to avoid noise)
+    # do the perspective trannsform
+    if area > 6000 and len(sortedPoints) == 4:
+      #TODO: This is how the robot realizes it can read a plate
+      print("Grabbing Plate")
 
+      height, width = np.divide(cv_image.shape[0:2],5)
 
-    height, width = np.divide(cv_image.shape[0:2],5)
+      # referenced https://arccoder.medium.com/straighten-an-image-of-a-page-using-opencv-313182404b06
+      # List the output points in the same order as input
+      dstPts = [[0, 0], [width, 0], [0, height*1.5], [width, height*1.5]]
+      # Get the transform
+      m = cv2.getPerspectiveTransform(np.float32(sortedPoints), np.float32(dstPts))
+      # Transform the image
+      norm = cv2.warpPerspective(img_crop, m, (int(width), int(height)+135))
 
-    # referenced https://arccoder.medium.com/straighten-an-image-of-a-page-using-opencv-313182404b06
-    # List the output points in the same order as input
-    dstPts = [[0, 0], [width, 0], [0, height*1.5], [width, height*1.5]]
-    # Get the transform
-    m = cv2.getPerspectiveTransform(np.float32(sortedPoints), np.float32(dstPts))
-    # Transform the image
-    norm = cv2.warpPerspective(img_crop, m, (int(width), int(height)+120))
+      plate_height = 55
+      plate = norm[norm.shape[0]-plate_height:,:]
 
-    plate_height = 50
-    plate = norm[norm.shape[0]-plate_height:,:]
+      cv2.imshow("image1", plate)
+      cv2.waitKey(3)  
 
 
 
@@ -118,8 +136,7 @@ class plate_reader:
 
     
 
-    cv2.imshow("image1", plate)
-    cv2.waitKey(3)
+    
 
     plate_num = 1
     plate = 'WXYZ'
