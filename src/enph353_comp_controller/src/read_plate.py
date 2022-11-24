@@ -38,7 +38,7 @@ class plate_reader:
     # Constants
     img_height = 400
     erode_kernel = np.ones((3,3))
-    dilate_kernel = np.ones((9,9))
+    dilate_kernel = np.ones((7,7))
     
     # def stop_robot(event):
     #   output = str('Team5,password,-1,ABCD')
@@ -59,12 +59,11 @@ class plate_reader:
     (rows,cols,channels) = cv_image.shape
 
     img_crop = cv_image[rows - img_height:,:]
-    colour_filter = cv2.cvtColor(img_crop, cv2.COLOR_BGR2LAB)[:,:,0]
+    colour_filter = img_crop[:,:,2]
     blurred = cv2.GaussianBlur(colour_filter, (5,5), 0)
     colour_mask = cv2.inRange(blurred,97,115)
     reduce_noise = cv2.erode(colour_mask,erode_kernel,iterations=1)
     reduce_noise = cv2.dilate(reduce_noise,dilate_kernel,iterations=1)
-    # gray = cv2.filter2D(src=gray,ddepth=-1,kernel=sharpen_kernel)
     
     # find contours
     contours, _ = cv2.findContours(reduce_noise, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE) 
@@ -109,7 +108,7 @@ class plate_reader:
     # Transform the image
     norm = cv2.warpPerspective(img_crop, m, (int(width), int(height)+120))
 
-    plate_height = 65
+    plate_height = 50
     plate = norm[norm.shape[0]-plate_height:,:]
 
 
