@@ -17,6 +17,23 @@ from std_msgs.msg import String
 
 import os
 
+import pickle
+
+from tensorflow.keras import layers
+from tensorflow.keras import models
+from tensorflow.keras import optimizers
+from tensorflow.keras.utils import plot_model
+from tensorflow.keras import backend
+
+import tensorflow as tf
+from tensorflow.keras import models
+from tensorflow.python.keras.backend import set_session
+from tensorflow.python.keras.models import load_model
+
+sess1 = tf.compat.v1.Session()    
+graph1 = tf.compat.v1.get_default_graph()
+set_session(sess1)
+
 class plate_reader:
 
   def __init__(self):
@@ -25,7 +42,9 @@ class plate_reader:
     self.image_sub = rospy.Subscriber("/R1/pi_camera/image_raw",Image,self.callback)
     self.license_pub = rospy.Publisher("/license_plate", String, queue_size=1)
     
+    self.model = models.load_model('model.h5')
 
+    self.allchars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
     self.startRun = True
     self.testPlate = True
 
@@ -39,6 +58,9 @@ class plate_reader:
     img_height = 400
     erode_kernel = np.ones((3,3))
     dilate_kernel = np.ones((3,3))
+    sharpen_kernel = np.array([[0, -1, 0],
+                              [-1, 5, -1],
+                              [0, -1, 0]])
     
     # def stop_robot(event):
     #   output = str('Team5,password,-1,ABCD')
@@ -62,7 +84,7 @@ class plate_reader:
     colour_filter = cv2.cvtColor(img_crop, cv2.COLOR_BGR2HSV)
     blurred = cv2.GaussianBlur(colour_filter, (5,5), 0)
     lower = np.array([0,0,90])
-    upper = np.array([0,0,110])
+    upper = np.array([0,0,210])
     colour_mask = cv2.inRange(blurred,lower,upper)
     after_mask = cv2.bitwise_and(img_crop, img_crop, mask=colour_mask)
     # reduce_noise = cv2.erode(colour_mask,erode_kernel,iterations=1)
@@ -111,35 +133,71 @@ class plate_reader:
     # do the perspective trannsform
     if area > 6000 and len(sortedPoints) == 4:
       #TODO: This is how the robot realizes it can read a plate
-      print("Grabbing Plate")
+      # print("Grabbing Plate")
 
-      height, width = np.divide(cv_image.shape[0:2],5)
+      height, width = (500,500)
 
       # referenced https://arccoder.medium.com/straighten-an-image-of-a-page-using-opencv-313182404b06
       # List the output points in the same order as input
-      dstPts = [[0, 0], [width, 0], [0, height*1.5], [width, height*1.5]]
+      dstPts = [[0, 0], [width, 0], [0, height], [width, height]]
       # Get the transform
       m = cv2.getPerspectiveTransform(np.float32(sortedPoints), np.float32(dstPts))
       # Transform the image
-      norm = cv2.warpPerspective(img_crop, m, (int(width), int(height)+135))
+      norm = cv2.warpPerspective(img_crop, m, (int(width), int(height)+150))
 
-      plate_height = 55
+      plate_height = 120
       plate = norm[norm.shape[0]-plate_height:,:]
+      # plate = cv2.resize(plate, (500,120), interpolation=cv2.INTER_AREA)
+      # plate = cv2.filter2D(plate, ddepth=-1, kernel=sharpen_kernel)
 
+      cv2.imshow("image5", norm)
+      cv2.waitKey(3) 
       cv2.imshow("image1", plate)
-      cv2.waitKey(3)  
+      cv2.waitKey(3)
+
+      chars = [plate[:,15:115],
+                plate[:,115:215],
+                plate[:,280:380],
+                plate[:,380:480]]
+    
+
+      # cv2.imshow("L0", chars[0])
+      # cv2.waitKey(3)
+      # cv2.imshow("L1", chars[1])
+      # cv2.waitKey(3)
+      # cv2.imshow("L2", chars[2])
+      # cv2.waitKey(3)
+      # cv2.imshow("L3", chars[3])
+      # cv2.waitKey(3)
+
+
+      # print(plate.shape)
+
+
+      # model = models.load_model('saved_model/model')
+      # img_aug = np.expand_dims(chars[0],axis=0)
+      # predict = model.predict(img_aug)
+      # # print(predict)
+      # print(self.allchars[np.argmax(predict)])
+
+
+      plate = ''
+      for c in chars:
+        img_aug = np.expand_dims(c,axis=0)
+        predict = self.model.predict(img_aug)
+        plate+=self.allchars[np.argmax(predict)]
+      
+      print(plate)
+
+
+    else:
+      print("Can't see plate")
 
 
 
 
     
 
-    
-
-    
-
-    plate_num = 1
-    plate = 'WXYZ'
 
 
     # # start the timer
