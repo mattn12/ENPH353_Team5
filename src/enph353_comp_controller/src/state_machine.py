@@ -67,6 +67,8 @@ class state_machine:
       self.currentState, mover = self.drive.run_drive(cv_image)
       self.move.linear.x = mover[0]
       self.move.angular.z = mover[1]
+      # self.move.linear.x = 0
+      # self.move.angular.z = 0
     elif self.currentState == "cross_walk":
       print("\n\nCross Walk\n\n")
       # self.run_cross_walk(self)
