@@ -14,6 +14,7 @@ import rospy
 
 from move_robot import robot_driver
 from read_plate import plate_reader
+from cross_walk import avoid_ped
 
 
 ## States
@@ -31,8 +32,9 @@ class state_machine:
 
       # State Variables
       self.states = {"drive", "cross_walk", "found_car"}
-      self.currentState = "drive"
+      self.currentState = "cross_walk"
       self.drive = robot_driver()
+      self.cross = avoid_ped()
       # self.plate = plate_reader()
 
       # Other Variables
@@ -58,25 +60,28 @@ class state_machine:
   def run(self, data):
     try:
       cv_image = self.bridge.imgmsg_to_cv2(data, "bgr8")
-      print("Got an Image")
+      print("\n\n\n\nGot an Image\n\n\n\n")
     except CvBridgeError as e:
       print(e)
 
     if self.currentState == "drive":
       print("\n\nDriving\n\n")
-      self.currentState, mover = self.drive.run_drive(cv_image)
-      self.move.linear.x = mover[0]
-      self.move.angular.z = mover[1]
-      # self.move.linear.x = 0
-      # self.move.angular.z = 0
+      # self.currentState, mover = self.drive.run_drive(cv_image)
+      # self.move.linear.x = mover[0]
+      # self.move.angular.z = mover[1]
+      self.move.linear.x = 0
+      self.move.angular.z = 0
     elif self.currentState == "cross_walk":
       print("\n\nCross Walk\n\n")
-      # self.run_cross_walk(self)
-    elif self.currentState == "found_car":
-      print("\n\nLicense Plate\n\n")
-      # self.run_found_car(self)
+      mover =  self.cross.run_cross_walk(cv_image)
+      self.move.linear.x = mover[0]
+      self.move.angular.z = mover[1]
     else:
       print("The given state: %s does not match a known state", self.currentState)
+
+
+    # Run Matthew's License Plate Code
+
 
     try:
       self.drive_pub.publish(self.move)

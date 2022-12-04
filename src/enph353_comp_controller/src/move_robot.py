@@ -88,7 +88,7 @@ class robot_driver:
     # Other Variables
     self.move = (0.0, 0.0)
     # self.lastmove = (0.0, 0.0)
-    self.dotColour = (150, 150, 150)
+    self.dotColour = (0, 0, 255)
 
 
 
@@ -150,10 +150,10 @@ class robot_driver:
       botContMom2 = cv2.moments(botSortedCont[1])
 
       # Draw Contours on Image
-      img_cont1 = cv2.drawContours(processed_img, topSortedCont, 0, (100, 0, 0), 2)
-      img_cont2 = cv2.drawContours(img_cont1, topSortedCont, 1, (100, 0, 0), 2)
-      img_cont3 = cv2.drawContours(img_cont2, botSortedCont, 0, (100, 0, 0), 2)
-      img_cont4 = cv2.drawContours(img_cont3, botSortedCont, 1, (100, 0, 0), 2)
+      img_cont1 = cv2.drawContours(cv_image, topSortedCont, 0, (255, 0, 0), 2)
+      img_cont2 = cv2.drawContours(img_cont1, topSortedCont, 1, (0, 255, 0), 2)
+      img_cont3 = cv2.drawContours(img_cont2, botSortedCont, 0, (255, 0, 0), 2)
+      img_cont4 = cv2.drawContours(img_cont3, botSortedCont, 1, (0, 255, 0), 2)
 
       # # Draw contours on image
       # printCont1 = topSortedCont[0] + (0, topcrop_height)
@@ -218,7 +218,7 @@ class robot_driver:
 
       # The area of a contour is zero
       else:
-        img_text = cv2.putText(processed_img, "Zero Area", (int(cols / 2), 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2, cv2.LINE_AA)
+        img_text = cv2.putText(cv_image, "Zero Area", (int(cols / 2), 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
         cv2.imshow("Debug Image", img_text)
         cv2.waitKey(3)
 
@@ -237,9 +237,9 @@ class robot_driver:
       botContMom2 = cv2.moments(botSortedCont[1])
 
       # Draw contours on image
-      img_cont1 = cv2.drawContours(processed_img, topcontours, -1, (100, 0, 0), 2)
-      img_cont2 = cv2.drawContours(img_cont1, botSortedCont, 0, (100, 0, 0), 2)
-      img_cont3 = cv2.drawContours(img_cont2, botSortedCont, 1, (100, 0, 0), 2)
+      img_cont1 = cv2.drawContours(cv_image, topcontours, -1, (255, 0, 0), 2)
+      img_cont2 = cv2.drawContours(img_cont1, botSortedCont, 0, (255, 0, 0), 2)
+      img_cont3 = cv2.drawContours(img_cont2, botSortedCont, 1, (0, 255, 0), 2)
 
       # Check if the contour contains any pixels
       if topContMom['m00'] > 0 and botContMom1['m00'] > 0 and botContMom2['m00'] > 0:
@@ -270,7 +270,7 @@ class robot_driver:
           self.followOneLine(cols, rows, side_Offset, rightCentre, img_circle)
       
       else:
-        img_text = cv2.putText(processed_img, "Zero Area", (int(cols / 2), 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2, cv2.LINE_AA)
+        img_text = cv2.putText(cv_image, "Zero Area", (int(cols / 2), 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
         cv2.imshow("Debug Image", img_text)
         cv2.waitKey(3)
 
@@ -289,9 +289,9 @@ class robot_driver:
       botContMom = cv2.moments(botcontours[0])
 
       # Draw contours on image
-      img_cont1 = cv2.drawContours(processed_img, topSortedCont, 0, (100, 0, 0), 2)
-      img_cont2 = cv2.drawContours(img_cont1, topSortedCont, 1, (100, 0, 0), 2)
-      img_cont3 = cv2.drawContours(img_cont2, botcontours, -1, (100, 0, 0), 2)
+      img_cont1 = cv2.drawContours(cv_image, topSortedCont, 0, (255, 0, 0), 2)
+      img_cont2 = cv2.drawContours(img_cont1, topSortedCont, 1, (0, 255, 0), 2)
+      img_cont3 = cv2.drawContours(img_cont2, botcontours, -1, (255, 0, 0), 2)
 
       # Check if the contour contains any pixels
       if topContMom1['m00'] > 0 and topContMom2['m00'] > 0 and botContMom['m00'] > 0:
@@ -320,7 +320,7 @@ class robot_driver:
           self.followOneLine(cols, rows, side_Offset, rightCentre, img_circle)
 
       else:
-        img_text = cv2.putText(processed_img, "Zero Area", (int(cols / 2), 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2, cv2.LINE_AA)
+        img_text = cv2.putText(cv_image, "Zero Area", (int(cols / 2), 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
         cv2.imshow("Debug Image", img_text)
         cv2.waitKey(3)
 
@@ -333,16 +333,19 @@ class robot_driver:
       #Get Bottom contour
       botContMom = cv2.moments(botcontours[0])
 
+      img_cont = cv2.drawContours(cv_image, botcontours, 0, (255, 0, 0), 2)
+
       # Check if the contour contains any pixels
       if botContMom['m00'] > 0:
         # Get the centroid of the contour
         botcentre = (int(botContMom['m10']/botContMom['m00']), int(botContMom['m01']/botContMom['m00']))
+        img_circle = cv2.circle(img_cont, (botcentre[0], botcentre[1]), 5, self.dotColour, -1)
 
         # Follow the line
-        self.followOneLine(cols, rows, side_Offset, botcentre, processed_img)
+        self.followOneLine(cols, rows, side_Offset, botcentre, img_circle)
 
       else:
-        img_text = cv2.putText(processed_img, "Zero Area", (int(cols / 2), 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2, cv2.LINE_AA)
+        img_text = cv2.putText(cv_image, "Zero Area", (int(cols / 2), 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
         cv2.imshow("Debug Image", img_text)
         cv2.waitKey(3)
 
@@ -356,7 +359,8 @@ class robot_driver:
       angular = 3*self.LastOutputNormLine
       self.move = (linear, angular)
       print("Lost line")
-      cv2.imshow("Debug Image", processed_img)
+      img_text = cv2.putText(cv_image, "Lost Line", (int(cols / 2), 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
+      cv2.imshow("Debug Image", img_text)
       cv2.waitKey(3)
       print("Top: " + str(len(topcontours)) + "\tBottom: " + str(len(botcontours)))
 
@@ -413,9 +417,9 @@ class robot_driver:
     return sortedContours
   
   def followTwoLines(self, cols, rows, topleft, topright, botleft, botright, img):
-    kp = 0.04
+    kp = 0.01
     ki = 0
-    kd = 0.02
+    kd = 0.0002
     saturation = 2
     target = int(cols/2)
     speed = 0.4
@@ -425,7 +429,7 @@ class robot_driver:
     img_circle = cv2.circle(img, (ave_centre[0], 200), 10, self.dotColour, -1)
     img_line = cv2.line(img_circle, (target, 0), (target, rows), self.dotColour, 1)
     # img_line = cv2.line(img_circle, (0, targetLine), (cols, targetLine), self.dotColour, 1)
-    img_text = cv2.putText(img_line, "Two Lines", (int(cols / 2), 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2, cv2.LINE_AA)
+    img_text = cv2.putText(img_line, "Two Lines", (int(cols / 2), 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
     cv2.imshow("Debug Image", img_text)
     cv2.waitKey(3)
 
@@ -437,7 +441,7 @@ class robot_driver:
 
 
   def followOneLine(self, cols, rows, offset, contCentre, img):
-    kp = 0.04
+    kp = 0.01
     ki = 0
     kd = 0.0001
     saturation = 2
@@ -454,7 +458,7 @@ class robot_driver:
     img_circle = cv2.circle(img, (centre[0], 200), 10, self.dotColour, -1)
     # img_line = cv2.line(img_circle, (0, targetLine), (cols, targetLine), self.dotColour, 1)
     img_line = cv2.line(img_circle, (targetAng, 0), (targetAng, rows), self.dotColour, 1)
-    img_text = cv2.putText(img_line, text, (int(cols / 2), 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2, cv2.LINE_AA)
+    img_text = cv2.putText(img_line, text, (int(cols / 2), 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
     cv2.imshow("Debug Image", img_text)
     cv2.waitKey(3)
 
