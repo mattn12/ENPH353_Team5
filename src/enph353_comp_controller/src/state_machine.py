@@ -32,7 +32,7 @@ class state_machine:
 
       # State Variables
       self.states = {"drive", "cross_walk", "found_car"}
-      self.currentState = "cross_walk"
+      self.currentState = "drive"
       self.drive = robot_driver()
       self.cross = avoid_ped()
       # self.plate = plate_reader()
@@ -66,16 +66,18 @@ class state_machine:
 
     if self.currentState == "drive":
       print("\n\nDriving\n\n")
-      # self.currentState, mover = self.drive.run_drive(cv_image)
+      self.currentState, mover = self.drive.run_drive(cv_image)
       # self.move.linear.x = mover[0]
       # self.move.angular.z = mover[1]
-      self.move.linear.x = 0
-      self.move.angular.z = 0
+      (self.move.linear.x, self.move.angular.z) = mover
+      # self.move.linear.x = 0
+      # self.move.angular.z = 0
     elif self.currentState == "cross_walk":
       print("\n\nCross Walk\n\n")
-      mover =  self.cross.run_cross_walk(cv_image)
-      self.move.linear.x = mover[0]
-      self.move.angular.z = mover[1]
+      self.currentState, mover =  self.cross.run_cross_walk(cv_image)
+      # self.move.linear.x = mover[0]
+      # self.move.angular.z = mover[1]
+      (self.move.linear.x, self.move.angular.z) = mover
     else:
       print("The given state: %s does not match a known state", self.currentState)
 

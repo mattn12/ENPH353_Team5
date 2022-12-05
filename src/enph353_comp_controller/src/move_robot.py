@@ -90,7 +90,12 @@ class robot_driver:
     # self.lastmove = (0.0, 0.0)
     self.dotColour = (0, 0, 255)
 
-
+  # To test cross walk
+  # def run_drive(self, cv_image):
+  #   state = self.state_change(cv_image)
+  #   if state != "drive":
+  #     return state, (0.0,0.0)
+  #   return  state, (0.5, 0)
 
   def run_drive(self, cv_image):
     # Constants
@@ -383,9 +388,9 @@ class robot_driver:
     # Blur image 
     img_blur = cv2.GaussianBlur(img_mask, gaussianKernel, 0)
     # Binarize the image
-    _, img_bin = cv2.threshold(img_blur, threshold, 255, cv2.THRESH_BINARY)
+    # _, img_bin = cv2.threshold(img_blur, threshold, 255, cv2.THRESH_BINARY)
     # Do more image processing to remove noise
-    img_ero = cv2.erode(img_bin, None, iterations = 2)
+    img_ero = cv2.erode(img_blur, None, iterations = 2)
     img_dil = cv2.dilate(img_ero, None, iterations = 2)
     # cv2.imshow("Noise Suppressed", img_dil)
     cv2.waitKey(3)
@@ -393,16 +398,80 @@ class robot_driver:
     return img_dil
 
   def state_change(self, img):
-    state = "drive"
-    bin_threshold = 100
-    red_threshold = 1500000
-    red_img = img[:,:,2] - 0.5 * img[:,:,0] - 0.5 * img[:,:,1]
-    _, redbin_img = cv2.threshold(red_img, bin_threshold, 255, cv2.THRESH_BINARY)
+    # state = "drive"
+    # bin_threshold = 100
+    # red_threshold = 1500000
+    # red_img = img[:,:,2] - 0.5 * img[:,:,0] - 0.5 * img[:,:,1]
+    # _, redbin_img = cv2.threshold(red_img, bin_threshold, 255, cv2.THRESH_BINARY)
     # cv2.imshow("Red Binary", redbin_img)
     # cv2.waitKey(3)
     # print("Red Value: " + str(sum(map(sum, redbin_img))))
-    if sum(map(sum, redbin_img)) > red_threshold:
-      state = "cross_walk"
+    # if sum(map(sum, redbin_img)) > red_threshold:
+    #   state = "cross_walk"
+    # return state
+
+    # V2
+    # state = "drive"
+    # redmin1 = (0, 100, 100)
+    # redmax1 = (10, 255, 255)
+    # redmin2 = (160, 100, 100)
+    # redmax2 = (180, 255, 255)
+    # red_threshold = 1500000
+
+    # img_hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+    # img_red1 = cv2.inRange(img_hsv, redmin1, redmax1)
+    # img_red2 = cv2.inRange(img_hsv, redmin2, redmax2)
+    # img_red = img_red1 + img_red2
+
+    # # Do more image processing to remove noise
+    # img_ero = cv2.erode(img_red, None, iterations = 2)
+    # img_dil = cv2.dilate(img_ero, None, iterations = 2)
+    # cv2.imshow("Red Binary", img_dil)
+    # cv2.waitKey(3)
+    # print("Red Value: " + str(sum(map(sum, img_red))))
+    # if sum(map(sum, img_red)) > red_threshold:
+    #   state = "cross_walk"
+    # return state
+
+    state = "drive"
+    redmin1 = (0, 100, 100)
+    redmax1 = (10, 255, 255)
+    redmin2 = (160, 100, 100)
+    redmax2 = (180, 255, 255)
+    red_line = 150
+    rows = img.shape[0]
+    cols = img.shape[1]
+
+    img_hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+    img_red1 = cv2.inRange(img_hsv, redmin1, redmax1)
+    img_red2 = cv2.inRange(img_hsv, redmin2, redmax2)
+    img_red = img_red1 + img_red2
+
+    # Do more image processing to remove noise
+    img_ero = cv2.erode(img_red, None, iterations = 2)
+    img_dil = cv2.dilate(img_ero, None, iterations = 2)
+
+    # Get Contours
+    contours, _ = cv2.findContours(img_dil, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+
+    if len(contours) > 0:
+      #sort Contours
+      sortedConts = self.sortContours(contours)
+
+      # Get largest contours moments
+      maxContMom = cv2.moments(sortedConts[0])
+
+      if maxContMom['m00'] > 0:
+        centre = (int(maxContMom['m10']/maxContMom['m00']), int(maxContMom['m01']/maxContMom['m00']))
+
+        img_cont = cv2.drawContours(img, sortedConts, 0, (255, 0, 0), 2)
+        img = cv2.line(img_cont, (0, rows - red_line), (cols, rows - red_line), (255, 255, 255))
+
+        if centre[1] > rows - red_line:
+          state = "cross_walk"
+
+    cv2.imshow("Red Image", img)
+    cv2.waitKey(3)
     return state
 
   def sortContours(self, contours):
