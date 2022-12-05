@@ -106,7 +106,7 @@ class robot_driver:
     (rows,cols,channels) = cv_image.shape
     topcrop_height = 200
     midcrop_height = 100
-    side_Offset = 400
+    side_Offset = 410
     # Speed(forward/back, angular)
     self.move = (0.0, 0.0)
 
@@ -144,7 +144,7 @@ class robot_driver:
 
 
 
-
+    cv2.namedWindow("Debug Image", cv2.WINDOW_NORMAL)
     # If there are at least 2 contours in top and bottom, line follow them
     if len(topcontours) > 1 and len(botcontours) > 1:
 
@@ -441,71 +441,6 @@ class robot_driver:
     state = "drive"
     cv_image = np.copy(img)
 
-    if published_plate:
-      print("Started Timer")
-      self.plate_timerStart = time.time()
-      
-    if time.time() - self.plate_timerStart > 1:
-      img_height = 400
-      # get image from robot camera
-      (rows,cols,channels) = cv_image.shape
-
-      img_crop = cv_image[rows - img_height:,:]
-      hsv = cv2.cvtColor(img_crop, cv2.COLOR_BGR2HSV)
-      blurred = cv2.GaussianBlur(hsv, (5,5), 0)
-      lower = np.array([0,0,90])
-      upper = np.array([0,0,210])
-      colour_mask = cv2.inRange(blurred,lower,upper)
-      # after_mask = cv2.bitwise_and(img_crop, img_crop, mask=colour_mask)
-      # reduce_noise = cv2.erode(colour_mask,erode_kernel,iterations=1)
-      # reduce_noise = cv2.dilate(reduce_noise,dilate_kernel,iterations=1)
-      
-      # find contours
-      contours, _ = cv2.findContours(colour_mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE) 
-      areaArray = []
-      for _, c in enumerate(contours):
-        area = cv2.contourArea(c)
-        areaArray.append(area)
-
-      #first sort the array by area
-      sortedContours = sorted(zip(areaArray, contours), key=lambda x: x[0], reverse=True)
-
-      # draw the largest contour
-      cnt = sortedContours[0][1]
-      area = sortedContours[0][0]
-      cv2.drawContours(img_crop,[cnt], -1, (255, 0, 0), 4)
-
-      # # referenced: https://stackoverflow.com/questions/41879315/opencv-visualize-polygonal-curves-extracted-with-cv2-approxpolydp
-      # # define main island contour approx. and hull
-      # perimeter = cv2.arcLength(cnt,True)
-      # epsilon = 0.01*perimeter
-      # approx = cv2.approxPolyDP(cnt,epsilon,True)
-      # hull = cv2.convexHull(cnt)
-      # # draw dots at corners
-      # cv2.drawContours(img_crop, approx, -1, (0, 0, 255), 3)
-      
-      # # sorts points from descending weighted sum (ie top left, top right, bottom left, bottom right)
-      # sortedPoints = sorted(approx, key=lambda x: x[0,0]+3*x[0,1])
-      # # print(approx)
-      # # print(approx[0,0,0]*approx[0,0,1])
-      # # print(sortedPoints)
-
-
-      # cv2.imshow("image4", blurred)
-      # cv2.waitKey(3)
-      # cv2.imshow("image3", colour_mask)
-      # cv2.waitKey(3)
-      cv2.imshow("image2", img_crop)
-      cv2.waitKey(3)
-      
-      print("Area = "+str(area))
-
-      #  If we are close enough, found the car (area big enough to avoid noise)
-      if (area > 7000):
-        print("hello")
-        state = "found_car"
-
-
 
     redmin1 = (0, 100, 100)
     redmax1 = (10, 255, 255)
@@ -545,9 +480,123 @@ class robot_driver:
 
 
 
+    if published_plate:
+      print("Started Timer")
+      self.plate_timerStart = time.time()
+      
+    if (time.time() - self.plate_timerStart > 2) and not(state=="cross_walk"):
+      # Constants
+      img_height = 400
+      sharpen_kernel = np.array([[0, -1, 0],
+                                [-1, 5, -1],
+                                [0, -1, 0]])
+      erode_kernel3 = np.ones((3,3))
+      dilate_kernel3 = np.ones((3,3))
+      
+      (rows,cols,channels) = cv_image.shape
+
+
+      def process_hsv_range(img,lower,upper):
+        # input:  img: cv2 image
+        #         lower: lower bound of HSV values (np array)
+        #         upper: upper bound of HSV values (np array)
+        # output: filtered cv2 binary image between 
+        #         lower and upper bounds in HSV colorspace
+        
+        hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+        blurred = cv2.GaussianBlur(hsv, (5, 5), 0)
+        return cv2.inRange(blurred, lower, upper)
+
+      
+
+        # input:    cv2 image
+        #           ordered corners of a distorted rectangle
+        #           shape of output image (height,width)
+        # output:   cv2 image of desired shape
+        
+        # Order of corners: top left, top right, bottom left, bottom right)
+
+        # referenced https://arccoder.medium.com/straighten-an-image-of-a-page-using-opencv-313182404b06
+        dstPts = [[0, 0], [shape[1], 0], [0, shape[0]], [shape[1], shape[0]]]
+        m = cv2.getPerspectiveTransform(np.float32(corners), np.float32(dstPts))
+        
+        # Transform the image
+        return cv2.warpPerspective(img, m, (int(shape[1]), int(shape[0])))
+        
+      def find_points(contour):
+        # input:    contours of a shape
+        # referenced: https://stackoverflow.com/questions/41879315/opencv-visualize-polygonal-curves-extracted-with-cv2-approxpolydp
+        # define main island contour approx. and hull
+        perimeter = cv2.arcLength(contour, True)
+        epsilon = 0.01*perimeter
+        approx = cv2.approxPolyDP(contour, epsilon, True)
+        hull = cv2.convexHull(contour)
+
+        return approx
+      
+
+      img_crop = cv_image[rows - img_height:, :]
+
+      ###################### FINDING THE PLATE ################################
+      plate_lower = np.array([80, 0, 75])
+      plate_upper = np.array([150, 65, 180])
+      plate_mask = process_hsv_range(img_crop,plate_lower,plate_upper)
+      
+      plate_contours, _ = cv2.findContours(plate_mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE) 
+      ###################### FINDING THE PLATE ################################
+
+
+
+      ###################### FINDING THE POSITION NUMBER ################################
+      lower_forPos = np.array([0, 0, 90])
+      upper_forPos = np.array([0, 0, 210])
+      mask_forPos = process_hsv_range(img_crop, lower_forPos, upper_forPos)
+
+      contours_Pos, _ = cv2.findContours(mask_forPos, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
+      ###################### FINDING THE POSITION NUMBER ################################
+
+
+      if len(plate_contours) > 0:
+        
+        ###################### FINDING THE PLATE ################################
+        #first sort the array by area
+        sortedCont_Plate = sorted(plate_contours, key=cv2.contourArea, reverse=True)
+
+        # draw the largest contour
+        cnt = sortedCont_Plate[0]
+        img_draw = np.copy(img_crop)
+        cv2.drawContours(img_draw,[cnt], -1, (255, 0, 0), 3)
+        check_area = cv2.contourArea(cnt)
+        points = find_points(cnt)
+        cv2.drawContours(img_draw, points, -1, (0, 0, 255), 3)
+        ###################### FINDING THE PLATE ################################
+
+
+
+
+        ###################### FINDING THE POSITION NUMBER ################################
+        sortedCont_Pos = sorted(contours_Pos, key=cv2.contourArea, reverse=True)
+        cnt_Pos = sortedCont_Pos[0]
+        cv2.drawContours(img_draw, [cnt_Pos], -1, (255, 0, 0), 3)
+        check_areaPos = cv2.contourArea(cnt_Pos)
+        points_Pos = find_points(cnt_Pos)
+        cv2.drawContours(img_draw, points_Pos, -1, (0, 0, 255), 3)
+        ###################### FINDING THE POSITION NUMBER ################################
+
+        cv2.namedWindow("Plate Finding",cv2.WINDOW_NORMAL)
+        cv2.imshow("Plate Finding",img_draw)
+        cv2.waitKey(3)
+
+
+
+        #  If we are close enough, found the car (area big enough to avoid noise)
+        if (check_areaPos > 7200) and (check_area > 2500):
+          print("Car detected")
+          state = "found_car"
+
     
 
-
+    cv2.namedWindow("Red Image", cv2.WINDOW_NORMAL)
     cv2.imshow("Red Image", img)
     cv2.waitKey(3)
     print("State:"+state)
@@ -565,18 +614,19 @@ class robot_driver:
     return sortedContours
   
   def followTwoLines(self, cols, rows, topleft, topright, botleft, botright, img):
-    kp = 0.01
+    kp = 0.02
     ki = 0
     kd = 0.0002
     saturation = 2
     target = int(cols/2)
-    speed = 0.4
+    speed = 0.3
 
     # Find Average of all of the centres
     ave_centre = (int((topleft[0] + botleft[0] + topright[0] + botright[0]) / 4), int((topleft[1] + botleft[1] + topright[1] + botright[1]) / 4))
     img_circle = cv2.circle(img, (ave_centre[0], 200), 10, self.dotColour, -1)
     img_line = cv2.line(img_circle, (target, 0), (target, rows), self.dotColour, 1)
     # img_line = cv2.line(img_circle, (0, targetLine), (cols, targetLine), self.dotColour, 1)
+    
     img_text = cv2.putText(img_line, "Two Lines", (int(cols / 2), 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
     cv2.imshow("Debug Image", img_text)
     cv2.waitKey(3)
@@ -589,12 +639,12 @@ class robot_driver:
 
 
   def followOneLine(self, cols, rows, offset, contCentre, img):
-    kp = 0.01
+    kp = 0.02
     ki = 0
     kd = 0.0001
     saturation = 2
     targetAng = int(cols/2)
-    speed = 0.4
+    speed = 0.15
     
     if contCentre[0] <= targetAng:
       centre = (contCentre[0] + offset, contCentre[1])
