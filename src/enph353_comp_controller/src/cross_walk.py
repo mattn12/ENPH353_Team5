@@ -22,7 +22,7 @@ class avoid_ped:
     def run_cross_walk(self, cv_image):
         move = (0.0, 0.0)
         state = "cross_walk"
-        go_timeout = 1.2
+        go_timeout = 1.4
         (rows,cols,channels) = cv_image.shape
 
         move_time = time.time() - self.start_time

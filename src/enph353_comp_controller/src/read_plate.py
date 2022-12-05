@@ -39,23 +39,19 @@ set_session(sess1)
 class plate_reader:
 
   def __init__(self):
-    # Variables for subscribing and publishing
-    self.bridge = CvBridge()
-    self.image_sub = rospy.Subscriber("/R1/pi_camera/image_raw",Image,self.callback)
-    self.license_pub = rospy.Publisher("/license_plate", String, queue_size=1)
+    # self.bridge = CvBridge()
+    # print("Created Bridge")
+    # self.image_sub = rospy.Subscriber("/R1/pi_camera/image_raw",Image,self.run)
+    # self.drive_pub = rospy.Publisher("/R1/cmd_vel", Twist, queue_size=1)
+    # self.license_pub = rospy.Publisher("/license_plate", String, queue_size=1)
     
-    self.model = models.load_model('plate_models/final_form_model.h5')
-
+    self.model = models.load_model('plate_models/new_model.h5')
     self.allchars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-    self.startRun = True
-    self.testPlate = True
+    # self.startRun = True
+    # self.testPlate = True
 
-  def callback(self,data):
-    try:
-      cv_image = self.bridge.imgmsg_to_cv2(data, "bgr8")
-    except CvBridgeError as e:
-      print(e)
-
+  def read_plate(self,cv_image):
+    
     # Constants
     img_height = 400
     sharpen_kernel = np.array([[0, -1, 0],
@@ -82,8 +78,8 @@ class plate_reader:
     (rows,cols,channels) = cv_image.shape
 
     img_crop = cv_image[rows - img_height:,:]
-    colour_filter = cv2.cvtColor(img_crop, cv2.COLOR_BGR2HSV)
-    blurred = cv2.GaussianBlur(colour_filter, (5,5), 0)
+    hsv = cv2.cvtColor(img_crop, cv2.COLOR_BGR2HSV)
+    blurred = cv2.GaussianBlur(hsv, (5,5), 0)
     lower = np.array([0,0,90])
     upper = np.array([0,0,210])
     colour_mask = cv2.inRange(blurred,lower,upper)
@@ -93,18 +89,18 @@ class plate_reader:
     
     # find contours
     contours, _ = cv2.findContours(colour_mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE) 
-    areaArray = []
-    for _, c in enumerate(contours):
-      area = cv2.contourArea(c)
-      areaArray.append(area)
 
     #first sort the array by area
-    sortedContours = sorted(zip(areaArray, contours), key=lambda x: x[0], reverse=True)
+    sortedContours = sorted(contours, key=cv2.contourArea, reverse=True)
 
     # draw the largest contour
-    cnt = sortedContours[0][1]
-    area = sortedContours[0][0]
+    cnt = sortedContours[0]
     # cv2.drawContours(img_crop,[cnt], -1, (255, 0, 0), 1)
+
+    img_crop = cv2.putText(img_crop, str(cv2.contourArea(cnt)), (int(cols / 2), 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
+
+
+
 
     # referenced: https://stackoverflow.com/questions/41879315/opencv-visualize-polygonal-curves-extracted-with-cv2-approxpolydp
     # define main island contour approx. and hull
@@ -128,15 +124,14 @@ class plate_reader:
     # cv2.waitKey(3)
     cv2.imshow("image2", img_crop)
     cv2.waitKey(3)
-    
-    print(area)
 
 
-    # if there are four corners, and we are close enough (area big enough to avoid noise)
-    # do the perspective trannsform
-    # maybe use 6k to detect car, but 7k to start reading
-    if area > 7000 and len(sortedPoints) == 4:
-      #TODO: This is how the robot realizes it can read a plate
+
+
+
+
+    # if there are four corners do the perspective trannsform
+    if len(sortedPoints) == 4:
       # print("Grabbing Plate")
 
       height, width = (230,230)
@@ -163,16 +158,6 @@ class plate_reader:
       # cv2.waitKey(3) 
       cv2.imshow("image1", plate)
       cv2.waitKey(3)
-
-
-
-
-
-    
-
-      
-
-     
 
 
 
@@ -360,6 +345,12 @@ class plate_reader:
     #     print(e)
         
     #   rospy.Timer(rospy.Duration(10),stop_robot)
+
+
+
+
+
+    return "drive", True
 
 
 def main(args):

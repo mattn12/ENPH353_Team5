@@ -35,7 +35,10 @@ class state_machine:
       self.currentState = "drive"
       self.drive = robot_driver()
       self.cross = avoid_ped()
-      # self.plate = plate_reader()
+      self.plate = plate_reader()
+      
+      
+      self.published_plate = False
 
       # Other Variables
       self.move = Twist()
@@ -66,7 +69,8 @@ class state_machine:
 
     if self.currentState == "drive":
       print("\n\nDriving\n\n")
-      self.currentState, mover = self.drive.run_drive(cv_image)
+      self.currentState, mover = self.drive.run_drive(cv_image,self.published_plate)
+      self.published_plate = False
       # self.move.linear.x = mover[0]
       # self.move.angular.z = mover[1]
       (self.move.linear.x, self.move.angular.z) = mover
@@ -77,6 +81,11 @@ class state_machine:
       self.currentState, mover =  self.cross.run_cross_walk(cv_image)
       # self.move.linear.x = mover[0]
       # self.move.angular.z = mover[1]
+      (self.move.linear.x, self.move.angular.z) = mover
+    elif self.currentState == "found_car":
+      print("\n\nReading Plate\n\n")
+      mover = (0,0)
+      self.currentState, self.published_plate =  self.plate.read_plate(cv_image)
       (self.move.linear.x, self.move.angular.z) = mover
     else:
       print("The given state: %s does not match a known state", self.currentState)

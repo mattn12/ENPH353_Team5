@@ -6,6 +6,7 @@ import sys
 import rospy
 import cv2
 import time
+import numpy as np
 # from std_msgs.msg import String
 # from sensor_msgs.msg import Image
 # from cv_bridge import CvBridge, CvBridgeError
@@ -81,6 +82,8 @@ class robot_driver:
     self.errSumOneAng = 0
     self.LastOutputOneAng = 0
 
+    self.plate_timerStart = 0
+
     # Timing variables
     # self.startRun = True
     # self.endRun = False
@@ -97,7 +100,7 @@ class robot_driver:
   #     return state, (0.0,0.0)
   #   return  state, (0.5, 0)
 
-  def run_drive(self, cv_image):
+  def run_drive(self, cv_image, published_plate):
     # Constants
     state = "drive"
     (rows,cols,channels) = cv_image.shape
@@ -108,11 +111,12 @@ class robot_driver:
     self.move = (0.0, 0.0)
 
     ## Check the state
-    state = self.state_change(cv_image)
+    state = self.state_change(np.copy(cv_image), published_plate)
     if state != "drive":
       return state, (0.0,0.0)
+    
 
-    ## Image Processing
+    ## Image Processing for driving
 
     processed_img = self.process_img(cv_image)
     #todo Determine if we need to change state
@@ -369,7 +373,6 @@ class robot_driver:
       cv2.waitKey(3)
       print("Top: " + str(len(topcontours)) + "\tBottom: " + str(len(botcontours)))
 
-    
     return state, self.move
 
   def process_img(self, cv_image):
@@ -397,7 +400,7 @@ class robot_driver:
 
     return img_dil
 
-  def state_change(self, img):
+  def state_change(self, img, published_plate):
     # state = "drive"
     # bin_threshold = 100
     # red_threshold = 1500000
@@ -433,7 +436,77 @@ class robot_driver:
     #   state = "cross_walk"
     # return state
 
+    # go_timeout = 1.2
+    # move_time = time.time() - self.start_time
     state = "drive"
+    cv_image = np.copy(img)
+
+    if published_plate:
+      print("Started Timer")
+      self.plate_timerStart = time.time()
+      
+    if time.time() - self.plate_timerStart > 1:
+      img_height = 400
+      # get image from robot camera
+      (rows,cols,channels) = cv_image.shape
+
+      img_crop = cv_image[rows - img_height:,:]
+      hsv = cv2.cvtColor(img_crop, cv2.COLOR_BGR2HSV)
+      blurred = cv2.GaussianBlur(hsv, (5,5), 0)
+      lower = np.array([0,0,90])
+      upper = np.array([0,0,210])
+      colour_mask = cv2.inRange(blurred,lower,upper)
+      # after_mask = cv2.bitwise_and(img_crop, img_crop, mask=colour_mask)
+      # reduce_noise = cv2.erode(colour_mask,erode_kernel,iterations=1)
+      # reduce_noise = cv2.dilate(reduce_noise,dilate_kernel,iterations=1)
+      
+      # find contours
+      contours, _ = cv2.findContours(colour_mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE) 
+      areaArray = []
+      for _, c in enumerate(contours):
+        area = cv2.contourArea(c)
+        areaArray.append(area)
+
+      #first sort the array by area
+      sortedContours = sorted(zip(areaArray, contours), key=lambda x: x[0], reverse=True)
+
+      # draw the largest contour
+      cnt = sortedContours[0][1]
+      area = sortedContours[0][0]
+      cv2.drawContours(img_crop,[cnt], -1, (255, 0, 0), 4)
+
+      # # referenced: https://stackoverflow.com/questions/41879315/opencv-visualize-polygonal-curves-extracted-with-cv2-approxpolydp
+      # # define main island contour approx. and hull
+      # perimeter = cv2.arcLength(cnt,True)
+      # epsilon = 0.01*perimeter
+      # approx = cv2.approxPolyDP(cnt,epsilon,True)
+      # hull = cv2.convexHull(cnt)
+      # # draw dots at corners
+      # cv2.drawContours(img_crop, approx, -1, (0, 0, 255), 3)
+      
+      # # sorts points from descending weighted sum (ie top left, top right, bottom left, bottom right)
+      # sortedPoints = sorted(approx, key=lambda x: x[0,0]+3*x[0,1])
+      # # print(approx)
+      # # print(approx[0,0,0]*approx[0,0,1])
+      # # print(sortedPoints)
+
+
+      # cv2.imshow("image4", blurred)
+      # cv2.waitKey(3)
+      # cv2.imshow("image3", colour_mask)
+      # cv2.waitKey(3)
+      cv2.imshow("image2", img_crop)
+      cv2.waitKey(3)
+      
+      print("Area = "+str(area))
+
+      #  If we are close enough, found the car (area big enough to avoid noise)
+      if (area > 7000):
+        print("hello")
+        state = "found_car"
+
+
+
     redmin1 = (0, 100, 100)
     redmax1 = (10, 255, 255)
     redmin2 = (160, 100, 100)
@@ -470,8 +543,14 @@ class robot_driver:
         if centre[1] > rows - red_line:
           state = "cross_walk"
 
+
+
+    
+
+
     cv2.imshow("Red Image", img)
     cv2.waitKey(3)
+    print("State:"+state)
     return state
 
   def sortContours(self, contours):
