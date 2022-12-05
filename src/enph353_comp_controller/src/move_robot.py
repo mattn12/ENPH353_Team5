@@ -6,10 +6,10 @@ import sys
 import rospy
 import cv2
 import time
-from std_msgs.msg import String
-from sensor_msgs.msg import Image
-from cv_bridge import CvBridge, CvBridgeError
-from geometry_msgs.msg import Twist
+# from std_msgs.msg import String
+# from sensor_msgs.msg import Image
+# from cv_bridge import CvBridge, CvBridgeError
+# from geometry_msgs.msg import Twist
 
 
 # PID control loop to find the linear and rotational movement of the robot based off of this website: http://brettbeauregard.com/blog/2011/04/improving-the-beginners-pid-introduction/
@@ -46,7 +46,7 @@ def pid(self, kp, ki, kd, target, current, errSum, lastErr, lastTime, saturation
     self.LastTimeOneAng = now
     self.LastOutputOneAng = output
 
-  print("Desired output: " + str(target) + "\tPosition: " + str(current) + "\tOutput: " + str(output))
+  print("Type: " + axis + "\tDesired output: " + str(target) + "\tPosition: " + str(current) + "\tOutput: " + str(output))
   return output
 
 def reset_variables(self):
@@ -66,11 +66,6 @@ def reset_variables(self):
 class robot_driver:
 
   def __init__(self):
-    # Variables for subscribing and publishing
-    self.bridge = CvBridge()
-    self.image_sub = rospy.Subscriber("/R1/pi_camera/image_raw",Image,self.callback)
-    self.drive_pub = rospy.Publisher("/R1/cmd_vel", Twist, queue_size=1)
-    self.license_pub = rospy.Publisher("/license_plate", String, queue_size=1)
 
     # Variables for PID control
     self.lastTimeNormAng = time.time()
@@ -87,209 +82,461 @@ class robot_driver:
     self.LastOutputOneAng = 0
 
     # Timing variables
-    self.timeout = 0
+    # self.startRun = True
+    # self.endRun = False
 
-    self.startRun = True
-    self.endRun = False
+    # Other Variables
+    self.move = (0.0, 0.0)
+    # self.lastmove = (0.0, 0.0)
+    self.dotColour = (0, 0, 255)
 
+  # To test cross walk
+  # def run_drive(self, cv_image):
+  #   state = self.state_change(cv_image)
+  #   if state != "drive":
+  #     return state, (0.0,0.0)
+  #   return  state, (0.5, 0)
 
-  def callback(self, data):
-    try:
-      cv_image = self.bridge.imgmsg_to_cv2(data, "bgr8")
-    except CvBridgeError as e:
-      print(e)
-
-
-    
-
+  def run_drive(self, cv_image):
     # Constants
+    state = "drive"
     (rows,cols,channels) = cv_image.shape
-    crop_height = 200
-    move = Twist()
-    gaussianKernel = (11, 11)
-    threshold = 220
-    kpAng = 0.015
-    kiAng = 0
-    kdAng = 0.00001
-    saturationAng = 2
-    targetAng = int(cols/2)
-    kpLine = 0.0004
-    kiLine = 0
-    kdLine = 0
-    saturationLine = 1
-    targetLine = rows-100
-    kpAngOne = 0.05
-    kiAngOne = 0
-    kdAngOne = 0.00001
-    saturationAngOne = 2
+    topcrop_height = 200
+    midcrop_height = 100
+    side_Offset = 400
+    # Speed(forward/back, angular)
+    self.move = (0.0, 0.0)
+
+    ## Check the state
+    state = self.state_change(cv_image)
+    if state != "drive":
+      return state, (0.0,0.0)
+
+    ## Image Processing
+
+    processed_img = self.process_img(cv_image)
+    #todo Determine if we need to change state
+
+
+    # processed_img = cv2.cvtColor(processed_img, cv2.COLOR_GRAY2RGB)
+
+    # processed_img = cv2.circle(processed_img, (0, 0), 50, (255, 0, 0), -1)
+    # processed_img = cv2.circle(processed_img, (0, rows), 50, (0, 255, 0), -1)
+    # processed_img = cv2.circle(processed_img, (cols, rows), 50, (0, 0, 255), -1)
+    # processed_img = cv2.circle(processed_img, (cols, 0), 50, (100, 100, 100), -1)
 
 
     # slice bottom portion of image
-    img_bot = cv_image[rows - crop_height:,:]
-    # Convert the frame to a different grayscale
-    img_gray = cv2.cvtColor(img_bot, cv2.COLOR_RGB2GRAY)
-    # Blur image to reduce noise
-    img_blur = cv2.GaussianBlur(img_gray, gaussianKernel, 0)
-    # Binarize the image
-    _, img_bin = cv2.threshold(img_blur, threshold, 255, cv2.THRESH_BINARY)
-    # cv2.imshow("Binary Image", img_bin)
-
-    # Do more image processing to remove noise
-    img_ero = cv2.erode(img_bin, None, iterations = 2)
-    img_dil = cv2.dilate(img_ero, None, iterations = 2)
-    # cv2.imshow("Noise Suppressed", img_dil)
+    img_top = processed_img[rows - topcrop_height:rows - midcrop_height,:]
+    # cv2.imshow("TopCropped", img_top)
+    # cv2.waitKey(3)
+    img_bot = processed_img[rows - midcrop_height:,:]
+    # cv2.imshow("BottomCropped", img_bot)
+    # cv2.waitKey(3)
 
     # Find the contours of the image
-    contours, _ = cv2.findContours(img_dil, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
-    # Overlay the contours onto the original image
-    # img_cont = cv2.drawContours(cv_image, contours, -1, (0, 0, 0), 1)
+    topcontours, _ = cv2.findContours(img_top, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE, offset=(0, rows - topcrop_height))
+    botcontours, _ = cv2.findContours(img_bot, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE, offset=(0, rows - midcrop_height))
 
-    def stop_robot(event):
-      output = str('Team5,password,-1,ABCD')
-      move.angular.z = 0
-      move.linear.x = 0
-      reset_variables(self)
-      try:
-        self.license_pub.publish(output)
-        self.drive_pub.publish(move)
-      except CvBridgeError as e:
-        print(e)
 
-      self.endRun = True
 
-      print("Stopped robot")
-      rospy.signal_shutdown("Timer ended.")
 
+    # If there are at least 2 contours in top and bottom, line follow them
+    if len(topcontours) > 1 and len(botcontours) > 1:
+
+      # first sort the array by area
+      topSortedCont = self.sortContours(topcontours)
+      botSortedCont = self.sortContours(botcontours)
+
+      # Get the moments of the largest contours
+      topContMom1 = cv2.moments(topSortedCont[0])
+      topContMom2 = cv2.moments(topSortedCont[1])
+      botContMom1 = cv2.moments(botSortedCont[0])
+      botContMom2 = cv2.moments(botSortedCont[1])
+
+      # Draw Contours on Image
+      img_cont1 = cv2.drawContours(cv_image, topSortedCont, 0, (255, 0, 0), 2)
+      img_cont2 = cv2.drawContours(img_cont1, topSortedCont, 1, (0, 255, 0), 2)
+      img_cont3 = cv2.drawContours(img_cont2, botSortedCont, 0, (255, 0, 0), 2)
+      img_cont4 = cv2.drawContours(img_cont3, botSortedCont, 1, (0, 255, 0), 2)
+
+      # # Draw contours on image
+      # printCont1 = topSortedCont[0] + (0, topcrop_height)
+      # printCont2 = topSortedCont[1] + (0, topcrop_height)
+      # printCont3 = botSortedCont[0] + (0, midcrop_height)
+      # printCont4 = botSortedCont[1] + (0, midcrop_height)
       
+      # img_cont1 = cv2.drawContours(processed_img, printCont1, 0, (100, 100, 100), 10)
+      # img_cont2 = cv2.drawContours(img_cont1, printCont2, 0, (100, 100, 100), 10)
+      # img_cont3 = cv2.drawContours(img_cont2, printCont3, 0, (100, 100, 100), 10)
+      # img_cont4 = cv2.drawContours(img_cont3, printCont4, 0, (100, 100, 100), 10)
 
-    # start the timer
-    if self.startRun:
-      output = str('Team5,password,0,ABCD')
-      self.startRun = False
-    
-      try:
-        self.license_pub.publish(output)
-        rospy.sleep(0.5)
-      except CvBridgeError as e:
-        print(e)
+      # For troubleshooting
+      # print("Contour Moment Areas:\n" + str(topContMom1['m00']) + "\n" + str(topContMom2['m00']) + "\n" + str(botContMom1['m00']) + "\n" + str(botContMom2['m00']) + "\n")
+
+      # Check if the contour contains any pixels
+      if topContMom1['m00'] > 0 and topContMom2['m00'] > 0 and botContMom1['m00'] > 0 and botContMom2['m00'] > 0:
+        # Find and draw centre of biggest top contour
+        topcentre1 = (int(topContMom1['m10']/topContMom1['m00']), int(topContMom1['m01']/topContMom1['m00']))
+        img_circle = cv2.circle(img_cont4, (topcentre1[0], topcentre1[1]), 5, self.dotColour, -1)
+
+        # Find and draw centre of second biggest top contour
+        topcentre2 = (int(topContMom2['m10']/topContMom2['m00']), int(topContMom2['m01']/topContMom2['m00']))
+        img_circle = cv2.circle(img_circle, (topcentre2[0], topcentre2[1]), 5, self.dotColour, -1)
         
-      rospy.Timer(rospy.Duration(10),stop_robot)
+        # Find and draw centre of biggest bottom contour
+        botcentre1 = (int(botContMom1['m10']/botContMom1['m00']), int(botContMom1['m01']/botContMom1['m00']))
+        img_circle = cv2.circle(img_circle, (botcentre1[0], botcentre1[1]), 5, self.dotColour, -1)
+
+        # Find and draw centre of biggest bottom contour
+        botcentre2 = (int(botContMom2['m10']/botContMom2['m00']), int(botContMom2['m01']/botContMom2['m00']))
+        img_circle = cv2.circle(img_circle, (botcentre2[0], botcentre2[1]), 5, self.dotColour, -1)
+
+        if topcentre1[0] < topcentre2[0]:
+          topleft, topright = topcentre1, topcentre2
+        else:
+          topleft, topright = topcentre2, topcentre1
+
+        if botcentre1[0] < botcentre2[0]:
+          botleft, botright = botcentre1, botcentre2
+        else:
+          botleft, botright = botcentre2, botcentre1
+
+        # Follow Centre of two lines
+        if topleft[0] > botleft[0] and topright[0] < botright[0]:
+
+          self.followTwoLines(cols, rows, topleft, topright, botleft, botright, img_circle)
+
+        # Follow right line
+        elif topleft[0] < botleft[0] and topright[0] < botright[0]:
+          
+          rightCentre = (int((topright[0] + botright[0]) / 2), int((topright[1] + botright[1]) / 2))
+
+          self.followOneLine(cols, rows, side_Offset, rightCentre, img_circle)
+
+        # Follow left line
+        elif topleft[0] > botleft[0] and topright[0] > botright[0]:
+          
+          leftCentre = (int((topleft[0] + botleft[0]) / 2), int((topleft[1] + botleft[1]) / 2))
+
+          self.followOneLine(cols, rows, side_Offset, leftCentre, img_circle)
+
+      # The area of a contour is zero
+      else:
+        img_text = cv2.putText(cv_image, "Zero Area", (int(cols / 2), 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
+        cv2.imshow("Debug Image", img_text)
+        cv2.waitKey(3)
 
 
-    
 
+
+    # There is one contour in the top, follow the side with the top contour
+    elif len(topcontours) == 1 and len(botcontours) > 1:
       
+      #Sort Bottom Contours
+      botSortedCont = self.sortContours(botcontours)
 
+      #Get Largest Contours
+      topContMom = cv2.moments(topcontours[0])
+      botContMom1 = cv2.moments(botSortedCont[0])
+      botContMom2 = cv2.moments(botSortedCont[1])
 
-    # Check that contours contains at least one contour then on the largest contour, find the centre of its centre
-    # Print a circle at the centre of mass on the original image
-    if len(contours) > 1:
-      areaArray = []
-      for _, c in enumerate(contours):
-        area = cv2.contourArea(c)
-        areaArray.append(area)
+      # Draw contours on image
+      img_cont1 = cv2.drawContours(cv_image, topcontours, -1, (255, 0, 0), 2)
+      img_cont2 = cv2.drawContours(img_cont1, botSortedCont, 0, (255, 0, 0), 2)
+      img_cont3 = cv2.drawContours(img_cont2, botSortedCont, 1, (0, 255, 0), 2)
 
-      #first sort the array by area
-      sortedContours = sorted(zip(areaArray, contours), key=lambda x: x[0], reverse=True)
+      # Check if the contour contains any pixels
+      if topContMom['m00'] > 0 and botContMom1['m00'] > 0 and botContMom2['m00'] > 0:
+        # Get Centroid of contours
+        topcentre = (int(topContMom['m10']/topContMom['m00']), int(topContMom['m01']/topContMom['m00']))
+        botcentre1 = (int(botContMom1['m10']/botContMom1['m00']), int(botContMom1['m01']/botContMom1['m00']))
+        botcentre2 = (int(botContMom2['m10']/botContMom2['m00']), int(botContMom2['m01']/botContMom2['m00']))
 
-      #find the 2 largest contours
-      maxContour1 = sortedContours[0][1]
-      maxContour2 = sortedContours[1][1]
+        #Classify which side the bottom contours are on
+        if botcentre1[0] < botcentre2[0]:
+          botleft, botright = botcentre1, botcentre2
+        else:
+          botleft, botright = botcentre2, botcentre1
+
+        # If the top line is on the left, follow the left side
+        if topcentre[0] <= int(cols / 2):
+
+          leftCentre = (int((topcentre[0] + botleft[0]) / 2), int((topcentre[1] + botleft[1]) / 2))
+          img_circle = cv2.circle(img_cont3, (leftCentre[0], leftCentre[1]), 5, self.dotColour, -1)
+          
+          self.followOneLine(cols, rows, side_Offset, leftCentre, img_circle)
+
+        # Else, follow the right side
+        else:
+          rightCentre = (int((topcentre[0] + botright[0]) / 2), int((topcentre[1] + botright[1]) / 2))
+          img_circle = cv2.circle(img_cont3, (rightCentre[0], rightCentre[1]), 5, self.dotColour, -1)
+
+          self.followOneLine(cols, rows, side_Offset, rightCentre, img_circle)
       
-      #maxCont = max(contours, key=cv2.contourArea)
-      #contMoments = cv2.moments(maxCont)
-      contMoments1 = cv2.moments(maxContour1)
-      contMoments2 = cv2.moments(maxContour2)
-    # Check if the contour contains any pixels
-      if contMoments1['m00'] > 0 and contMoments2['m00'] > 0:
-
-        centre1 = (int(contMoments1['m10']/contMoments1['m00']), int(contMoments1['m01']/contMoments1['m00']))
-        img_circle = cv2.circle(cv_image, (centre1[0], rows - crop_height + centre1[1]), 5, (0, 0, 255), -1)
-        # img_line = cv2.line(img_circle1, (0, targetLine), (800, targetLine), (0, 0, 255), 1)
-
-        centre2 = (int(contMoments2['m10']/contMoments2['m00']), int(contMoments2['m01']/contMoments2['m00']))
-        img_circle = cv2.circle(cv_image, (centre2[0], rows - crop_height + centre2[1]), 5, (0, 0, 255), -1)
-        
-        avg_centre = (int((centre1[0]+centre2[0])/2), int((centre1[1]+centre2[1])/2))
-        img_circle = cv2.circle(cv_image, (avg_centre[0], rows - crop_height + avg_centre[1]), 5, (0, 0, 255), -1)
-        img_line = cv2.line(img_circle, (0, targetLine), (cols, targetLine), (0, 0, 255), 1)
-        img_line = cv2.line(img_line, (targetAng, 0), (targetAng, rows), (0, 0, 255), 1)
-        
-        # cv2.imshow("Circle Image",img_line)
-        # cv2.waitKey(3)
-
-
-        # Use PID control to determine the rotation and speed of the vehicle
-        move.angular.z = pid(self, kpAng, kiAng, kdAng, targetAng, avg_centre[0], self.errSumNormAng, self.lastErrNormAng, self.lastTimeNormAng, saturationAng, 'NormAng')
-        move.linear.x = pid(self, kpLine, kiLine, kdLine, targetLine, avg_centre[1], self.errSumNormLine, self.LastErrNormLine, self.LastTimeNormLine, saturationLine, 'NormLine')
-
-        self.timeout = 0
+      else:
+        img_text = cv2.putText(cv_image, "Zero Area", (int(cols / 2), 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
+        cv2.imshow("Debug Image", img_text)
+        cv2.waitKey(3)
 
 
 
-      # elif contMoments1['m00'] == 0:
-      #   #TODO: change state to ___
 
-      # elif contMoments2['m00'] == 0:
-      #   #TODO: state change 
+    # There is one contour in the bottom, follow the side with the bottom contour
+    elif len(topcontours) > 1 and len(botcontours) == 1:
 
+      # Sort the top contours
+      topSortedCont = self.sortContours(topcontours)
 
+      # Select the largest contours
+      topContMom1 = cv2.moments(topSortedCont[0])
+      topContMom2 = cv2.moments(topSortedCont[1])
+      botContMom = cv2.moments(botcontours[0])
+
+      # Draw contours on image
+      img_cont1 = cv2.drawContours(cv_image, topSortedCont, 0, (255, 0, 0), 2)
+      img_cont2 = cv2.drawContours(img_cont1, topSortedCont, 1, (0, 255, 0), 2)
+      img_cont3 = cv2.drawContours(img_cont2, botcontours, -1, (255, 0, 0), 2)
+
+      # Check if the contour contains any pixels
+      if topContMom1['m00'] > 0 and topContMom2['m00'] > 0 and botContMom['m00'] > 0:
+        # Get the centroids of the contours
+        topcentre1 = (int(topContMom1['m10']/topContMom1['m00']), int(topContMom1['m01']/topContMom1['m00']))
+        topcentre2 = (int(topContMom2['m10']/topContMom2['m00']), int(topContMom2['m01']/topContMom2['m00']))
+        botcentre = (int(botContMom['m10']/botContMom['m00']), int(botContMom['m01']/botContMom['m00']))
+
+        # Classify the top centroids based on which side they are on
+        if topcentre1[0] < topcentre2[0]:
+          topleft, topright = topcentre1, topcentre2
+        else:
+          topleft, topright = topcentre2, topcentre1
+
+        # If the bottom centroid is on the left, follow the left side
+        if botcentre[0] <= int(cols / 2):
+          #Get the centroid of the two left centroids
+          leftCentre = (int((topleft[0] + botcentre[0]) / 2), int((topleft[1] + botcentre[1]) / 2))
+          img_circle = cv2.circle(img_cont3, (leftCentre[0], leftCentre[1]), 5, self.dotColour, -1)
+          self.followOneLine(cols, rows, side_Offset, leftCentre, img_circle)
+
+        # Follow the right side
+        else:
+          rightCentre = (int((topright[0] + botcentre[0]) / 2), int((topright[1] + botcentre[1]) / 2))
+          img_circle = cv2.circle(img_cont3, (rightCentre[0], rightCentre[1]), 5, self.dotColour, -1)
+          self.followOneLine(cols, rows, side_Offset, rightCentre, img_circle)
 
       else:
-        self.timeout += 1
+        img_text = cv2.putText(cv_image, "Zero Area", (int(cols / 2), 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
+        cv2.imshow("Debug Image", img_text)
+        cv2.waitKey(3)
 
-        if self.timeout > 3:
-          done = True
 
-    elif len(contours) == 1:
-      #TODO: state change (one line)
-      side_Offset = 400
 
-      maxCont = max(contours, key=cv2.contourArea)
-      contMoments = cv2.moments(maxCont)
-      contCentre = (int(contMoments['m10']/contMoments['m00']), int(contMoments['m01']/contMoments['m00']))
 
-      if contCentre[0] < int(cols/2):
-        centre = (contCentre[0] + side_Offset, contCentre[1])
-      elif contCentre[0] > int(cols/2):
-        centre = (contCentre[0] - side_Offset, contCentre[1])
+    # There is one contour in the bottom, less than 2 on the top, follow the bottom side
+    elif len(botcontours) == 1:
+      
+      #Get Bottom contour
+      botContMom = cv2.moments(botcontours[0])
+
+      img_cont = cv2.drawContours(cv_image, botcontours, 0, (255, 0, 0), 2)
+
+      # Check if the contour contains any pixels
+      if botContMom['m00'] > 0:
+        # Get the centroid of the contour
+        botcentre = (int(botContMom['m10']/botContMom['m00']), int(botContMom['m01']/botContMom['m00']))
+        img_circle = cv2.circle(img_cont, (botcentre[0], botcentre[1]), 5, self.dotColour, -1)
+
+        # Follow the line
+        self.followOneLine(cols, rows, side_Offset, botcentre, img_circle)
+
       else:
-        centre = contCentre
+        img_text = cv2.putText(cv_image, "Zero Area", (int(cols / 2), 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
+        cv2.imshow("Debug Image", img_text)
+        cv2.waitKey(3)
 
-      img_circle = cv2.circle(cv_image, (centre[0], rows - crop_height + centre[1]), 5, (0, 0, 255), -1)
-      img_line = cv2.line(img_circle, (0, targetLine), (cols, targetLine), (0, 0, 255), 1)
-      img_line = cv2.line(img_line, (targetAng, 0), (targetAng, rows), (0, 0, 255), 1)
-      # cv2.imshow("Circle Image",img_line)
-      # cv2.waitKey(3)
 
-      # Use PID control to determine the rotation and speed of the vehicle
-      move.angular.z = pid(self, kpAngOne, kiAngOne, kdAngOne, targetAng, centre[0], self.errSumOneAng, self.LastErrOneAng, self.LastTimeOneAng, saturationAngOne, 'OneAng')
-      # move.linear.x = pid(self, kpLine, kiLine, kdLine, targetLine, centre[1], self.errSumNormLine, self.LastErrNormLine, self.LastTimeNormLine, saturationLine, 'y')
-      move.linear.x = 0.5
-      print("Lost line")
+
 
     # if the line is not detected
     # If the camera loses the line then go slowly with the last rotation determined from PID
     else:
-      move.linear.x = -0.2
-      move.angular.z = 3*self.LastOutputNormLine
+      linear = -0.2
+      angular = 3*self.LastOutputNormLine
+      self.move = (linear, angular)
       print("Lost line")
+      img_text = cv2.putText(cv_image, "Lost Line", (int(cols / 2), 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
+      cv2.imshow("Debug Image", img_text)
+      cv2.waitKey(3)
+      print("Top: " + str(len(topcontours)) + "\tBottom: " + str(len(botcontours)))
 
-      self.timeout += 1
-      if self.timeout > 10:
-          done = True
+    
+    return state, self.move
 
-    # cv2.imshow("Image window", img_dot)
+  def process_img(self, cv_image):
+    #Variables
+    gaussianKernel = (11, 11)
+    threshold = 220
+    colourMin = (0, 0, 180)
+    colourMax = (180, 50, 255)
+
+    # Get HSV
+    img_hsv = cv2.cvtColor(cv_image, cv2.COLOR_BGR2HSV)
+    # Get range of colours
+    img_mask = cv2.inRange(img_hsv, colourMin, colourMax)
+    # cv2.imshow("HSV Mask", img_mask)
     # cv2.waitKey(3)
+    # Blur image 
+    img_blur = cv2.GaussianBlur(img_mask, gaussianKernel, 0)
+    # Binarize the image
+    # _, img_bin = cv2.threshold(img_blur, threshold, 255, cv2.THRESH_BINARY)
+    # Do more image processing to remove noise
+    img_ero = cv2.erode(img_blur, None, iterations = 2)
+    img_dil = cv2.dilate(img_ero, None, iterations = 2)
+    # cv2.imshow("Noise Suppressed", img_dil)
+    cv2.waitKey(3)
 
-    # Try to publish the movement to the robot, if not display the error
-    if not self.endRun: 
-      try:
-        self.drive_pub.publish(move)
-        print(str('Published: LinX = {}, AngZ = {}').format(move.linear.x,move.angular.z))
+    return img_dil
+
+  def state_change(self, img):
+    # state = "drive"
+    # bin_threshold = 100
+    # red_threshold = 1500000
+    # red_img = img[:,:,2] - 0.5 * img[:,:,0] - 0.5 * img[:,:,1]
+    # _, redbin_img = cv2.threshold(red_img, bin_threshold, 255, cv2.THRESH_BINARY)
+    # cv2.imshow("Red Binary", redbin_img)
+    # cv2.waitKey(3)
+    # print("Red Value: " + str(sum(map(sum, redbin_img))))
+    # if sum(map(sum, redbin_img)) > red_threshold:
+    #   state = "cross_walk"
+    # return state
+
+    # V2
+    # state = "drive"
+    # redmin1 = (0, 100, 100)
+    # redmax1 = (10, 255, 255)
+    # redmin2 = (160, 100, 100)
+    # redmax2 = (180, 255, 255)
+    # red_threshold = 1500000
+
+    # img_hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+    # img_red1 = cv2.inRange(img_hsv, redmin1, redmax1)
+    # img_red2 = cv2.inRange(img_hsv, redmin2, redmax2)
+    # img_red = img_red1 + img_red2
+
+    # # Do more image processing to remove noise
+    # img_ero = cv2.erode(img_red, None, iterations = 2)
+    # img_dil = cv2.dilate(img_ero, None, iterations = 2)
+    # cv2.imshow("Red Binary", img_dil)
+    # cv2.waitKey(3)
+    # print("Red Value: " + str(sum(map(sum, img_red))))
+    # if sum(map(sum, img_red)) > red_threshold:
+    #   state = "cross_walk"
+    # return state
+
+    state = "drive"
+    redmin1 = (0, 100, 100)
+    redmax1 = (10, 255, 255)
+    redmin2 = (160, 100, 100)
+    redmax2 = (180, 255, 255)
+    red_line = 150
+    rows = img.shape[0]
+    cols = img.shape[1]
+
+    img_hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+    img_red1 = cv2.inRange(img_hsv, redmin1, redmax1)
+    img_red2 = cv2.inRange(img_hsv, redmin2, redmax2)
+    img_red = img_red1 + img_red2
+
+    # Do more image processing to remove noise
+    img_ero = cv2.erode(img_red, None, iterations = 2)
+    img_dil = cv2.dilate(img_ero, None, iterations = 2)
+
+    # Get Contours
+    contours, _ = cv2.findContours(img_dil, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+
+    if len(contours) > 0:
+      #sort Contours
+      sortedConts = self.sortContours(contours)
+
+      # Get largest contours moments
+      maxContMom = cv2.moments(sortedConts[0])
+
+      if maxContMom['m00'] > 0:
+        centre = (int(maxContMom['m10']/maxContMom['m00']), int(maxContMom['m01']/maxContMom['m00']))
+
+        img_cont = cv2.drawContours(img, sortedConts, 0, (255, 0, 0), 2)
+        img = cv2.line(img_cont, (0, rows - red_line), (cols, rows - red_line), (255, 255, 255))
+
+        if centre[1] > rows - red_line:
+          state = "cross_walk"
+
+    cv2.imshow("Red Image", img)
+    cv2.waitKey(3)
+    return state
+
+  def sortContours(self, contours):
+    
+    sortedContours = sorted(contours, key=cv2.contourArea, reverse=True)
+
+    # For Debugging
+    # print("Contours by area:\n")
+    # for cont in sortedContours:
+    #   print(str(cv2.contourArea(cont)) + "\n")
+
+    return sortedContours
   
-      except CvBridgeError as e:
-        print(e)
+  def followTwoLines(self, cols, rows, topleft, topright, botleft, botright, img):
+    kp = 0.01
+    ki = 0
+    kd = 0.0002
+    saturation = 2
+    target = int(cols/2)
+    speed = 0.4
+
+    # Find Average of all of the centres
+    ave_centre = (int((topleft[0] + botleft[0] + topright[0] + botright[0]) / 4), int((topleft[1] + botleft[1] + topright[1] + botright[1]) / 4))
+    img_circle = cv2.circle(img, (ave_centre[0], 200), 10, self.dotColour, -1)
+    img_line = cv2.line(img_circle, (target, 0), (target, rows), self.dotColour, 1)
+    # img_line = cv2.line(img_circle, (0, targetLine), (cols, targetLine), self.dotColour, 1)
+    img_text = cv2.putText(img_line, "Two Lines", (int(cols / 2), 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
+    cv2.imshow("Debug Image", img_text)
+    cv2.waitKey(3)
+
+    # Use PID control to determine the rotation and speed of the vehicle
+    angular = pid(self, kp, ki, kd, target, ave_centre[0], self.errSumNormAng, self.lastErrNormAng, self.lastTimeNormAng, saturation, 'NormAng')
+    self.move = (speed, angular)
+
+    print("Reguler 2 lines")
+
+
+  def followOneLine(self, cols, rows, offset, contCentre, img):
+    kp = 0.01
+    ki = 0
+    kd = 0.0001
+    saturation = 2
+    targetAng = int(cols/2)
+    speed = 0.4
+    
+    if contCentre[0] <= targetAng:
+      centre = (contCentre[0] + offset, contCentre[1])
+      text = "One Line:\tLeft"
+    else:
+      centre = (contCentre[0] - offset, contCentre[1])
+      text = "One Line:\tRight"
+
+    img_circle = cv2.circle(img, (centre[0], 200), 10, self.dotColour, -1)
+    # img_line = cv2.line(img_circle, (0, targetLine), (cols, targetLine), self.dotColour, 1)
+    img_line = cv2.line(img_circle, (targetAng, 0), (targetAng, rows), self.dotColour, 1)
+    img_text = cv2.putText(img_line, text, (int(cols / 2), 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
+    cv2.imshow("Debug Image", img_text)
+    cv2.waitKey(3)
+
+    # Use PID control to determine the rotation and speed of the vehicle
+    angular = pid(self, kp, ki, kd, targetAng, centre[0], self.errSumOneAng, self.LastErrOneAng, self.LastTimeOneAng, saturation, 'OneAng')
+    self.move = (speed, angular)
+
+    print("Following One line")
+
 
 
 def main(args):
