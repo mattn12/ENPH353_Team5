@@ -57,8 +57,8 @@ class avoid_ped:
             # Do more image processing to remove noise
             img_ero = cv2.erode(img_mask, None, iterations = 2)
             img_dil = cv2.dilate(img_ero, None, iterations = 2)
-            cv2.imshow("Dil", img_dil)
-            cv2.waitKey(3)
+            # cv2.imshow("Dil", img_dil)
+            # cv2.waitKey(3)
 
             contours, _ = cv2.findContours(img_dil, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
 

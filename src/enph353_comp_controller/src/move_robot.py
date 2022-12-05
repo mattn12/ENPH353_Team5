@@ -142,7 +142,7 @@ class robot_driver:
     topcontours, _ = cv2.findContours(img_top, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE, offset=(0, rows - topcrop_height))
     botcontours, _ = cv2.findContours(img_bot, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE, offset=(0, rows - midcrop_height))
 
-
+    img_text = cv_image
 
     cv2.namedWindow("Debug Image", cv2.WINDOW_NORMAL)
     # If there are at least 2 contours in top and bottom, line follow them
@@ -228,8 +228,7 @@ class robot_driver:
       # The area of a contour is zero
       else:
         img_text = cv2.putText(cv_image, "Zero Area", (int(cols / 2), 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
-        cv2.imshow("Debug Image", img_text)
-        cv2.waitKey(3)
+      
 
 
 
@@ -280,8 +279,7 @@ class robot_driver:
       
       else:
         img_text = cv2.putText(cv_image, "Zero Area", (int(cols / 2), 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
-        cv2.imshow("Debug Image", img_text)
-        cv2.waitKey(3)
+      
 
 
 
@@ -330,8 +328,7 @@ class robot_driver:
 
       else:
         img_text = cv2.putText(cv_image, "Zero Area", (int(cols / 2), 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
-        cv2.imshow("Debug Image", img_text)
-        cv2.waitKey(3)
+    
 
 
 
@@ -355,8 +352,7 @@ class robot_driver:
 
       else:
         img_text = cv2.putText(cv_image, "Zero Area", (int(cols / 2), 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
-        cv2.imshow("Debug Image", img_text)
-        cv2.waitKey(3)
+        
 
 
 
@@ -369,25 +365,35 @@ class robot_driver:
       self.move = (linear, angular)
       print("Lost line")
       img_text = cv2.putText(cv_image, "Lost Line", (int(cols / 2), 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
-      cv2.imshow("Debug Image", img_text)
-      cv2.waitKey(3)
+    
       print("Top: " + str(len(topcontours)) + "\tBottom: " + str(len(botcontours)))
 
+
+    cv2.imshow("Debug Image", img_text)
+    cv2.waitKey(3)
     return state, self.move
 
   def process_img(self, cv_image):
     #Variables
     gaussianKernel = (11, 11)
     threshold = 220
-    colourMin = (0, 0, 180)
-    colourMax = (180, 50, 255)
+    colourMin = (120, 125, 125)
+    colourMax = (255, 135, 135)
 
-    # Get HSV
-    img_hsv = cv2.cvtColor(cv_image, cv2.COLOR_BGR2HSV)
+    # Get LAB
+    img_lab = cv2.cvtColor(cv_image, cv2.COLOR_BGR2LAB)
+  
     # Get range of colours
-    img_mask = cv2.inRange(img_hsv, colourMin, colourMax)
-    # cv2.imshow("HSV Mask", img_mask)
+    img_mask = cv2.inRange(img_lab, colourMin, colourMax)
+    cv2.imshow("LAB Mask", img_mask)
+    cv2.waitKey(3)
+
+    # lab_filter = cv2.inRange(cv2.cvtColor(cv_image,cv2.COLOR_BGR2LAB),(120,125,125),(255,135,135))
+    # cv2.imshow("LAB", img_lab)
     # cv2.waitKey(3)
+    # cv2.imshow("LAB_filter", lab_filter)
+    # cv2.waitKey(3)
+
     # Blur image 
     img_blur = cv2.GaussianBlur(img_mask, gaussianKernel, 0)
     # Binarize the image
@@ -583,22 +589,22 @@ class robot_driver:
         cv2.drawContours(img_draw, points_Pos, -1, (0, 0, 255), 3)
         ###################### FINDING THE POSITION NUMBER ################################
 
-        cv2.namedWindow("Plate Finding",cv2.WINDOW_NORMAL)
-        cv2.imshow("Plate Finding",img_draw)
-        cv2.waitKey(3)
+        # cv2.namedWindow("Plate Finding",cv2.WINDOW_NORMAL)
+        # cv2.imshow("Plate Finding",img_draw)
+        # cv2.waitKey(3)
 
 
 
         #  If we are close enough, found the car (area big enough to avoid noise)
         if (check_areaPos > 7200) and (check_area > 2500):
           print("Car detected")
-          state = "found_car"
+          # state = "found_car"
 
     
 
-    cv2.namedWindow("Red Image", cv2.WINDOW_NORMAL)
-    cv2.imshow("Red Image", img)
-    cv2.waitKey(3)
+    # cv2.namedWindow("Red Image", cv2.WINDOW_NORMAL)
+    # cv2.imshow("Red Image", img)
+    # cv2.waitKey(3)
     print("State:"+state)
     return state
 
@@ -614,7 +620,7 @@ class robot_driver:
     return sortedContours
   
   def followTwoLines(self, cols, rows, topleft, topright, botleft, botright, img):
-    kp = 0.02
+    kp = 0.03
     ki = 0
     kd = 0.0002
     saturation = 2
@@ -637,14 +643,13 @@ class robot_driver:
 
     print("Reguler 2 lines")
 
-
   def followOneLine(self, cols, rows, offset, contCentre, img):
-    kp = 0.02
+    kp = 0.03
     ki = 0
     kd = 0.0001
     saturation = 2
     targetAng = int(cols/2)
-    speed = 0.15
+    speed = 0.18
     
     if contCentre[0] <= targetAng:
       centre = (contCentre[0] + offset, contCentre[1])
