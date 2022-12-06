@@ -22,7 +22,7 @@ class avoid_ped:
     def run_cross_walk(self, cv_image):
         move = (0.0, 0.0)
         state = "cross_walk"
-        go_timeout = 1.4
+        go_timeout = 1.5
         (rows,cols,channels) = cv_image.shape
 
         move_time = time.time() - self.start_time
@@ -34,6 +34,8 @@ class avoid_ped:
 
         elif self.has_gone == True and move_time >= go_timeout:
             print("\n\nDone Moving!!\n\n")
+            # RESET has_gone (VERY IMPORTANT FOR THE NEXT XWALK)
+            self.has_gone = False
             img_text = cv2.putText(cv_image, "Done Cross", (int(cols / 2), 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
             move = (0.5, 0.0)
             state = "drive"
@@ -87,7 +89,7 @@ class avoid_ped:
                     if centre[0] > bound1 and centre[0] < bound2:
                         img_text = cv2.putText(img_cont, "GO!!!", (int(cols / 2), 70), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
                         self.has_gone = True
-                        move = (0.5, 0)
+                        move = (0.45, 0)
                         self.start_time = time.time()
 
 
