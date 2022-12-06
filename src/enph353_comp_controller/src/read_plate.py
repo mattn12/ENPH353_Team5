@@ -45,8 +45,10 @@ class plate_reader:
     # self.license_pub = rospy.Publisher("/license_plate", String, queue_size=1)
     # ##################### UNCOMMENT FOR INDIV. TESTING #####################
     
-    self.model = models.load_model('plate_models/giga_model.h5')
-    self.allchars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+    self.alpha_model = models.load_model('plate_models/alpha_model.h5')
+    self.num_model = models.load_model('plate_models/num_model.h5')
+    self.allalpha = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    self.allnum = "0123456789"
     # self.startRun = True
     # self.testPlate = True
 
@@ -212,15 +214,24 @@ class plate_reader:
       ###################### FINDING THE POSITION NUMBER ################################
 
 
+      img_text = cv2.putText(img_draw, str(check_area), (int(
+            cols / 2), 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
+      img_text = cv2.putText(img_draw, str(check_areaPos), (int(
+          cols / 2), 100), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
+      # cv2.namedWindow("debug",cv2.WINDOW_NORMAL)
+      # cv2.imshow("debug", img_text)
+      # cv2.waitKey(3)
 
       # if there are four corners in each do the perspective trannsform
-      if (len(sortedPoints) == 4 and check_area > 2000) and (len(sortedPoints_Pos) == 4 and check_areaPos > 7000):
-        img_text = cv2.putText(img_draw, str(cv2.contourArea(cnt))+"\nI see a plate", (int(
+      if (len(sortedPoints) == 4 and check_area > 3500) and (len(sortedPoints_Pos) == 4 and check_areaPos > 14000):
+        img_text = cv2.putText(img_draw, str(check_area)+" I see a plate", (int(
             cols / 2), 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
+        img_text = cv2.putText(img_draw, str(check_areaPos)+" I see a car", (int(
+            cols / 2), 100), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
         # print("Grabbing Plate")
-
         # cv2.imshow("debug", img_text)
         # cv2.waitKey(3)
+        
 
 
         ###################### FINDING THE POSITION NUMBER ################################
@@ -248,7 +259,9 @@ class plate_reader:
         cv2.namedWindow("Plate and Position", cv2.WINDOW_NORMAL)
         cv2.imshow("Plate and Position", plate_and_pos)
         cv2.waitKey(3)
-
+        # cv2.namedWindow("Plate", cv2.WINDOW_NORMAL)
+        # cv2.imshow("Plate", plate)
+        # cv2.waitKey(3)
 
 
 
@@ -348,10 +361,14 @@ class plate_reader:
 
         # read the characters
         plate_num = ""
-        for c in chars:
-          img_aug = np.expand_dims(c, axis=0)
-          predict = self.model.predict(img_aug)
-          plate_num+=self.allchars[np.argmax(predict)]
+        for i in range(4):
+          img_aug = np.expand_dims(chars[i], axis=0)
+          if i < 2:
+            predict = self.alpha_model.predict(img_aug)
+            plate_num+=self.allalpha[np.argmax(predict)]
+          else:
+            predict = self.num_model.predict(img_aug)
+            plate_num += self.allnum[np.argmax(predict)]
 
 
         # process and read the position number
@@ -365,14 +382,14 @@ class plate_reader:
         
         # read the number
         img_aug = np.expand_dims(position, axis=0)
-        pos_predict = self.model.predict(img_aug)
-        position_num=self.allchars[np.argmax(pos_predict)]
+        pos_predict = self.num_model.predict(img_aug)
+        position_num=self.allnum[np.argmax(pos_predict)]
 
         # cv2.imshow("image7", position)
         # cv2.waitKey(3) 
         
         output = str('Team5,password,{},{}').format(position_num,plate_num)
-        print(output)
+        # print(output)
         
         return "drive", True, output
 
@@ -381,27 +398,27 @@ class plate_reader:
 
 
 
-    # cv2.imshow("G0", guesses[0])
-    # cv2.waitKey(3)
-    # cv2.imshow("G1", guesses[1])
-    # cv2.waitKey(3)
-    # cv2.imshow("G2", guesses[2])
-    # cv2.waitKey(3)
-    # cv2.imshow("G3", guesses[3])
-    # cv2.waitKey(3)
+      # cv2.imshow("G0", guesses[0])
+      # cv2.waitKey(3)
+      # cv2.imshow("G1", guesses[1])
+      # cv2.waitKey(3)
+      # cv2.imshow("G2", guesses[2])
+      # cv2.waitKey(3)
+      # cv2.imshow("G3", guesses[3])
+      # cv2.waitKey(3)
 
 
 
 
-    # cv2.imshow("L0", chars[0])
-    # cv2.waitKey(3)
-    # cv2.imshow("L1", chars[1])
-    # cv2.waitKey(3)
-    # cv2.imshow("L2", chars[2])
-    # cv2.waitKey(3)
-    # cv2.imshow("L3", chars[3])
-    # cv2.waitKey(3)
-
+      # cv2.imshow("L0", chars[0])
+      # cv2.waitKey(3)
+      # cv2.imshow("L1", chars[1])
+      # cv2.waitKey(3)
+      # cv2.imshow("L2", chars[2])
+      # cv2.waitKey(3)
+      # cv2.imshow("L3", chars[3])
+      # cv2.waitKey(3)
+        
     
 
 
