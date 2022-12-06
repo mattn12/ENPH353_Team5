@@ -103,22 +103,35 @@ class robot_driver:
   def run_drive(self, cv_image, published_plate):
     # Constants
     state = "drive"
-    (rows,cols,channels) = cv_image.shape
+    (rows,cols,_) = cv_image.shape
     topcrop_height = 200
     midcrop_height = 100
-    side_Offset = 410
+    side_Offset = 419
+    
     # Speed(forward/back, angular)
     self.move = (0.0, 0.0)
+    
+    # Assume no plate/position in view
+    plate = np.empty(0)
+    position = np.empty(0)
+
 
     ## Check the state
-    state = self.state_change(np.copy(cv_image), published_plate)
-    if state != "drive":
-      return state, (0.0,0.0)
+    state, plate, position = self.state_change(np.copy(cv_image), published_plate)
+    if state == "cross_walk":
+      return state, (0.0,0.0), plate, position
+    elif state == "found_car":
+      return state, (-0.05,0.0), plate, position
     
 
     ## Image Processing for driving
 
     processed_img = self.process_img(cv_image)
+    processed_img = cv2.dilate(processed_img, np.ones((3,3)), iterations = 1)
+
+    cv2.namedWindow("Processed Line Following",cv2.WINDOW_NORMAL)
+    cv2.imshow("Processed Line Following", processed_img)
+    cv2.waitKey(3)
     #todo Determine if we need to change state
 
 
@@ -149,14 +162,12 @@ class robot_driver:
     if len(topcontours) > 1 and len(botcontours) > 1:
 
       # first sort the array by area
-      topSortedCont = self.sortContours(topcontours)
-      botSortedCont = self.sortContours(botcontours)
+      topSortedCont, botSortedCont = self.sortContours(topcontours), self.sortContours(botcontours)
 
       # Get the moments of the largest contours
-      topContMom1 = cv2.moments(topSortedCont[0])
-      topContMom2 = cv2.moments(topSortedCont[1])
-      botContMom1 = cv2.moments(botSortedCont[0])
-      botContMom2 = cv2.moments(botSortedCont[1])
+      topContMom1, topContMom2, botContMom1, botContMom2 = cv2.moments(
+          topSortedCont[0]), cv2.moments(topSortedCont[1]), cv2.moments(
+          botSortedCont[0]), cv2.moments(botSortedCont[1])
 
       # Draw Contours on Image
       img_cont1 = cv2.drawContours(cv_image, topSortedCont, 0, (255, 0, 0), 2)
@@ -213,14 +224,14 @@ class robot_driver:
 
         # Follow right line
         elif topleft[0] < botleft[0] and topright[0] < botright[0]:
-          
+
           rightCentre = (int((topright[0] + botright[0]) / 2), int((topright[1] + botright[1]) / 2))
 
           self.followOneLine(cols, rows, side_Offset, rightCentre, img_circle)
 
         # Follow left line
         elif topleft[0] > botleft[0] and topright[0] > botright[0]:
-          
+
           leftCentre = (int((topleft[0] + botleft[0]) / 2), int((topleft[1] + botleft[1]) / 2))
 
           self.followOneLine(cols, rows, side_Offset, leftCentre, img_circle)
@@ -234,7 +245,7 @@ class robot_driver:
 
 
     # There is one contour in the top, follow the side with the top contour
-    elif len(topcontours) == 1 and len(botcontours) > 1:
+    elif len(topcontours) == 1 and len(botcontours) == 2:
       
       #Sort Bottom Contours
       botSortedCont = self.sortContours(botcontours)
@@ -264,7 +275,7 @@ class robot_driver:
 
         # If the top line is on the left, follow the left side
         if topcentre[0] <= int(cols / 2):
-
+          
           leftCentre = (int((topcentre[0] + botleft[0]) / 2), int((topcentre[1] + botleft[1]) / 2))
           img_circle = cv2.circle(img_cont3, (leftCentre[0], leftCentre[1]), 5, self.dotColour, -1)
           
@@ -272,6 +283,7 @@ class robot_driver:
 
         # Else, follow the right side
         else:
+          
           rightCentre = (int((topcentre[0] + botright[0]) / 2), int((topcentre[1] + botright[1]) / 2))
           img_circle = cv2.circle(img_cont3, (rightCentre[0], rightCentre[1]), 5, self.dotColour, -1)
 
@@ -285,7 +297,7 @@ class robot_driver:
 
 
     # There is one contour in the bottom, follow the side with the bottom contour
-    elif len(topcontours) > 1 and len(botcontours) == 1:
+    elif len(topcontours) == 2 and len(botcontours) == 1:
 
       # Sort the top contours
       topSortedCont = self.sortContours(topcontours)
@@ -315,6 +327,7 @@ class robot_driver:
 
         # If the bottom centroid is on the left, follow the left side
         if botcentre[0] <= int(cols / 2):
+          
           #Get the centroid of the two left centroids
           leftCentre = (int((topleft[0] + botcentre[0]) / 2), int((topleft[1] + botcentre[1]) / 2))
           img_circle = cv2.circle(img_cont3, (leftCentre[0], leftCentre[1]), 5, self.dotColour, -1)
@@ -322,6 +335,7 @@ class robot_driver:
 
         # Follow the right side
         else:
+          
           rightCentre = (int((topright[0] + botcentre[0]) / 2), int((topright[1] + botcentre[1]) / 2))
           img_circle = cv2.circle(img_cont3, (rightCentre[0], rightCentre[1]), 5, self.dotColour, -1)
           self.followOneLine(cols, rows, side_Offset, rightCentre, img_circle)
@@ -347,6 +361,8 @@ class robot_driver:
         botcentre = (int(botContMom['m10']/botContMom['m00']), int(botContMom['m01']/botContMom['m00']))
         img_circle = cv2.circle(img_cont, (botcentre[0], botcentre[1]), 5, self.dotColour, -1)
 
+  
+
         # Follow the line
         self.followOneLine(cols, rows, side_Offset, botcentre, img_circle)
 
@@ -360,8 +376,8 @@ class robot_driver:
     # if the line is not detected
     # If the camera loses the line then go slowly with the last rotation determined from PID
     else:
-      linear = -0.2
-      angular = 3*self.LastOutputNormLine
+      linear = -0.15
+      angular = 2.5*self.LastOutputNormLine
       self.move = (linear, angular)
       print("Lost line")
       img_text = cv2.putText(cv_image, "Lost Line", (int(cols / 2), 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
@@ -371,7 +387,7 @@ class robot_driver:
 
     cv2.imshow("Debug Image", img_text)
     cv2.waitKey(3)
-    return state, self.move
+    return state, self.move, plate, position
 
   def process_img(self, cv_image):
     #Variables
@@ -382,95 +398,78 @@ class robot_driver:
 
     # Get LAB
     img_lab = cv2.cvtColor(cv_image, cv2.COLOR_BGR2LAB)
+
+    # Blur image 
+    img_blur = cv2.GaussianBlur(img_lab, gaussianKernel, 0)
   
     # Get range of colours
-    img_mask = cv2.inRange(img_lab, colourMin, colourMax)
-    cv2.imshow("LAB Mask", img_mask)
-    cv2.waitKey(3)
+    img_mask = cv2.inRange(img_blur, colourMin, colourMax)
+    # cv2.imshow("LAB Mask", img_mask)
+    # cv2.waitKey(3)
 
     # lab_filter = cv2.inRange(cv2.cvtColor(cv_image,cv2.COLOR_BGR2LAB),(120,125,125),(255,135,135))
     # cv2.imshow("LAB", img_lab)
     # cv2.waitKey(3)
     # cv2.imshow("LAB_filter", lab_filter)
     # cv2.waitKey(3)
-
-    # Blur image 
-    img_blur = cv2.GaussianBlur(img_mask, gaussianKernel, 0)
     # Binarize the image
     # _, img_bin = cv2.threshold(img_blur, threshold, 255, cv2.THRESH_BINARY)
     # Do more image processing to remove noise
-    img_ero = cv2.erode(img_blur, None, iterations = 2)
-    img_dil = cv2.dilate(img_ero, None, iterations = 2)
+    # img_ero = cv2.erode(img_mask, None, iterations = 2)
+    # img_dil = cv2.dilate(img_ero, None, iterations = 2)
     # cv2.imshow("Noise Suppressed", img_dil)
-    cv2.waitKey(3)
+    # cv2.waitKey(3)
 
-    return img_dil
+    return img_mask
+
+  def process_HSV_range(self, img, lower, upper):
+    # input:  img: cv2 image
+    #         lower: lower bound of HSV values (np array)
+    #         upper: upper bound of HSV values (np array)
+    # output: filtered cv2 binary image between
+    #         lower and upper bounds in HSV colorspace
+
+    hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+    # cv2.imshow("hsv",hsv)
+    # cv2.waitKey(3)
+    blurred = cv2.GaussianBlur(hsv, (5, 5), 0)
+    return cv2.inRange(blurred, lower, upper)
+
+  def process_LAB_range(self, img, lower, upper):
+    # input:  img: cv2 image
+    #         lower: lower bound of LAB values (np array)
+    #         upper: upper bound of LAB values (np array)
+    # output: filtered cv2 binary image between
+    #         lower and upper bounds in HSV colorspace
+
+    hsv = cv2.cvtColor(img, cv2.COLOR_BGR2LAB)
+    blurred = cv2.GaussianBlur(hsv, (5, 5), 0)
+    return cv2.inRange(blurred, lower, upper)
 
   def state_change(self, img, published_plate):
-    # state = "drive"
-    # bin_threshold = 100
-    # red_threshold = 1500000
-    # red_img = img[:,:,2] - 0.5 * img[:,:,0] - 0.5 * img[:,:,1]
-    # _, redbin_img = cv2.threshold(red_img, bin_threshold, 255, cv2.THRESH_BINARY)
-    # cv2.imshow("Red Binary", redbin_img)
+    state = "drive"
+    rows,cols = img.shape[:2]
+    cv_image = np.copy(img)
+
+    redlower_LAB = np.array((130,200,185))
+    redupper_LAB = np.array((145, 215, 205))
+    red_line = 150
+
+    red_bin = self.process_LAB_range(img,redlower_LAB,redupper_LAB)
+    # cv2.imshow("red_bin",red_bin)
     # cv2.waitKey(3)
-    # print("Red Value: " + str(sum(map(sum, redbin_img))))
-    # if sum(map(sum, redbin_img)) > red_threshold:
-    #   state = "cross_walk"
-    # return state
 
-    # V2
-    # state = "drive"
-    # redmin1 = (0, 100, 100)
-    # redmax1 = (10, 255, 255)
-    # redmin2 = (160, 100, 100)
-    # redmax2 = (180, 255, 255)
-    # red_threshold = 1500000
-
-    # img_hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-    # img_red1 = cv2.inRange(img_hsv, redmin1, redmax1)
-    # img_red2 = cv2.inRange(img_hsv, redmin2, redmax2)
-    # img_red = img_red1 + img_red2
-
+    # Not really necessary
     # # Do more image processing to remove noise
     # img_ero = cv2.erode(img_red, None, iterations = 2)
     # img_dil = cv2.dilate(img_ero, None, iterations = 2)
-    # cv2.imshow("Red Binary", img_dil)
-    # cv2.waitKey(3)
-    # print("Red Value: " + str(sum(map(sum, img_red))))
-    # if sum(map(sum, img_red)) > red_threshold:
-    #   state = "cross_walk"
-    # return state
-
-    # go_timeout = 1.2
-    # move_time = time.time() - self.start_time
-    state = "drive"
-    cv_image = np.copy(img)
-
-
-    redmin1 = (0, 100, 100)
-    redmax1 = (10, 255, 255)
-    redmin2 = (160, 100, 100)
-    redmax2 = (180, 255, 255)
-    red_line = 150
-    rows = img.shape[0]
-    cols = img.shape[1]
-
-    img_hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-    img_red1 = cv2.inRange(img_hsv, redmin1, redmax1)
-    img_red2 = cv2.inRange(img_hsv, redmin2, redmax2)
-    img_red = img_red1 + img_red2
-
-    # Do more image processing to remove noise
-    img_ero = cv2.erode(img_red, None, iterations = 2)
-    img_dil = cv2.dilate(img_ero, None, iterations = 2)
 
     # Get Contours
-    contours, _ = cv2.findContours(img_dil, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+    red_contours, _ = cv2.findContours(red_bin, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
 
-    if len(contours) > 0:
+    if len(red_contours) > 0:
       #sort Contours
-      sortedConts = self.sortContours(contours)
+      sortedConts = self.sortContours(red_contours)
 
       # Get largest contours moments
       maxContMom = cv2.moments(sortedConts[0])
@@ -484,8 +483,6 @@ class robot_driver:
         if centre[1] > rows - red_line:
           state = "cross_walk"
 
-
-
     if published_plate:
       print("Started Timer")
       self.plate_timerStart = time.time()
@@ -493,41 +490,7 @@ class robot_driver:
     if (time.time() - self.plate_timerStart > 2) and not(state=="cross_walk"):
       # Constants
       img_height = 400
-      sharpen_kernel = np.array([[0, -1, 0],
-                                [-1, 5, -1],
-                                [0, -1, 0]])
-      erode_kernel3 = np.ones((3,3))
-      dilate_kernel3 = np.ones((3,3))
-      
-      (rows,cols,channels) = cv_image.shape
-
-
-      def process_hsv_range(img,lower,upper):
-        # input:  img: cv2 image
-        #         lower: lower bound of HSV values (np array)
-        #         upper: upper bound of HSV values (np array)
-        # output: filtered cv2 binary image between 
-        #         lower and upper bounds in HSV colorspace
-        
-        hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-        blurred = cv2.GaussianBlur(hsv, (5, 5), 0)
-        return cv2.inRange(blurred, lower, upper)
-
-      
-
-        # input:    cv2 image
-        #           ordered corners of a distorted rectangle
-        #           shape of output image (height,width)
-        # output:   cv2 image of desired shape
-        
-        # Order of corners: top left, top right, bottom left, bottom right)
-
-        # referenced https://arccoder.medium.com/straighten-an-image-of-a-page-using-opencv-313182404b06
-        dstPts = [[0, 0], [shape[1], 0], [0, shape[0]], [shape[1], shape[0]]]
-        m = cv2.getPerspectiveTransform(np.float32(corners), np.float32(dstPts))
-        
-        # Transform the image
-        return cv2.warpPerspective(img, m, (int(shape[1]), int(shape[0])))
+      img_crop = cv_image[rows - img_height:, :]
         
       def find_points(contour):
         # input:    contours of a shape
@@ -539,14 +502,42 @@ class robot_driver:
         hull = cv2.convexHull(contour)
 
         return approx
-      
 
-      img_crop = cv_image[rows - img_height:, :]
+      def sort_points(points):
+        # input:    single entry list of a single entry list of (x,y) tuple points
+        # output:   same format of sorted (x,y) points according to:
+        #           order: (top left, top right, bottom left, bottom right)
+
+        # Assume the rectangle is not super distorted
+        # Then the sum will ensure the placement of the top left and bottom right corners
+        sort = sorted(points, key=lambda x: x[0, 0]+x[0, 1])
+        # print(sort)
+
+        # check if middle values have been misplaced
+        if (sort[1][0][0] < sort[2][0][0]) or (sort[1][0][1] > sort[2][0][1]):
+          sort[1], sort[2] = sort[2], sort[1]
+
+        return sort
+
+      def correct_distortion(img, corners, shape):
+        # input:    cv2 image
+        #           ordered corners of a distorted rectangle
+        #           shape of output image (height,width)
+        # output:   cv2 image of desired shape
+
+        # Order of corners: top left, top right, bottom left, bottom right)
+
+        # referenced https://arccoder.medium.com/straighten-an-image-of-a-page-using-opencv-313182404b06
+        dstPts = [[0, 0], [shape[1], 0], [0, shape[0]], [shape[1], shape[0]]]
+        m = cv2.getPerspectiveTransform(np.float32(corners), np.float32(dstPts))
+
+        # Transform the image
+        return cv2.warpPerspective(img, m, (int(shape[1]), int(shape[0])))
 
       ###################### FINDING THE PLATE ################################
       plate_lower = np.array([80, 0, 75])
       plate_upper = np.array([150, 65, 180])
-      plate_mask = process_hsv_range(img_crop,plate_lower,plate_upper)
+      plate_mask = self.process_HSV_range(img_crop,plate_lower,plate_upper)
       
       plate_contours, _ = cv2.findContours(plate_mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE) 
       ###################### FINDING THE PLATE ################################
@@ -556,7 +547,7 @@ class robot_driver:
       ###################### FINDING THE POSITION NUMBER ################################
       lower_forPos = np.array([0, 0, 90])
       upper_forPos = np.array([0, 0, 210])
-      mask_forPos = process_hsv_range(img_crop, lower_forPos, upper_forPos)
+      mask_forPos = self.process_HSV_range(img_crop, lower_forPos, upper_forPos)
 
       contours_Pos, _ = cv2.findContours(mask_forPos, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
       ###################### FINDING THE POSITION NUMBER ################################
@@ -567,46 +558,99 @@ class robot_driver:
         ###################### FINDING THE PLATE ################################
         #first sort the array by area
         sortedCont_Plate = sorted(plate_contours, key=cv2.contourArea, reverse=True)
-
-        # draw the largest contour
         cnt = sortedCont_Plate[0]
-        img_draw = np.copy(img_crop)
-        cv2.drawContours(img_draw,[cnt], -1, (255, 0, 0), 3)
         check_area = cv2.contourArea(cnt)
         points = find_points(cnt)
-        cv2.drawContours(img_draw, points, -1, (0, 0, 255), 3)
         ###################### FINDING THE PLATE ################################
-
-
-
 
         ###################### FINDING THE POSITION NUMBER ################################
         sortedCont_Pos = sorted(contours_Pos, key=cv2.contourArea, reverse=True)
         cnt_Pos = sortedCont_Pos[0]
-        cv2.drawContours(img_draw, [cnt_Pos], -1, (255, 0, 0), 3)
         check_areaPos = cv2.contourArea(cnt_Pos)
         points_Pos = find_points(cnt_Pos)
-        cv2.drawContours(img_draw, points_Pos, -1, (0, 0, 255), 3)
         ###################### FINDING THE POSITION NUMBER ################################
 
-        # cv2.namedWindow("Plate Finding",cv2.WINDOW_NORMAL)
-        # cv2.imshow("Plate Finding",img_draw)
-        # cv2.waitKey(3)
+        ##### Draw outlines and the corners with respective areas #########################
+        img_draw = np.copy(img_crop)
+        img_draw = cv2.putText(img_draw, str(check_area), (int(
+            cols / 2), 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
+        img_draw = cv2.putText(img_draw, str(check_areaPos), (int(
+            cols / 2), 100), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
+        cv2.drawContours(img_draw, [cnt], -1, (255, 0, 0), 3)
+        cv2.drawContours(img_draw, points, -1, (0, 0, 255), 3)
+        cv2.drawContours(img_draw, [cnt_Pos], -1, (255, 0, 0), 3)
+        cv2.drawContours(img_draw, points_Pos, -1, (0, 0, 255), 3)
+        cv2.namedWindow("Plate Finding",cv2.WINDOW_NORMAL)
+        cv2.imshow("Plate Finding",img_draw)
+        cv2.waitKey(3)
+        ##### Draw outlines and the corners with respective areas #########################
 
 
 
-        #  If we are close enough, found the car (area big enough to avoid noise)
-        if (check_areaPos > 7200) and (check_area > 2500):
+        # If we are close enough, found the car (area big enough to avoid noise)
+        # Get and trasform the plate and position number, send to read_plate
+        if (len(points) == 4 and check_area > 3200) and (len(points_Pos) == 4 and check_areaPos > 14000):
           print("Car detected")
-          # state = "found_car"
+          state = "found_car"
 
+          # if there are four corners in each do the perspective trannsform
+          img_draw = cv2.putText(img_draw, str(check_area)+" I see a plate", (int(
+              cols / 2), 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
+          img_draw = cv2.putText(img_draw, str(check_areaPos)+" I see a car", (int(
+              cols / 2), 100), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
+          cv2.imshow("Plate Finding", img_draw)
+          cv2.waitKey(3)
+
+
+          sortedPoints = sort_points(points)
+          sortedPoints_Pos = sort_points(points_Pos)
+          
+
+          ###################### FINDING THE POSITION NUMBER ################################
+          norm = correct_distortion(img_crop, sortedPoints_Pos, (230, 230))
+          # cut out the position number
+          position = norm[120:220, 120:240]
+
+          # cv2.imshow("norm",norm)
+          # cv2.waitKey(3)
+          ###################### FINDING THE POSITION NUMBER ################################
+
+
+          ###################### FINDING THE PLATE ################################
+          plate = correct_distortion(img_crop, sortedPoints, (50, 230))
+          ###################### FINDING THE PLATE ################################
+
+
+          # cv2.imshow("image5", norm)
+          # cv2.waitKey(3)
+          # cv2.imshow("image6", position)
+          # cv2.waitKey(3) 
+          cv2.namedWindow("Plate and Position", cv2.WINDOW_NORMAL)
+          cv2.imshow("Plate and Position", np.concatenate((np.pad(plate, [(0, 50), (0, 0), (0, 0)], mode='constant'),
+                                                           position), axis=1))
+          cv2.waitKey(3)
+          # cv2.namedWindow("Plate", cv2.WINDOW_NORMAL)
+          # cv2.imshow("Plate", plate)
+          # cv2.waitKey(3)
+
+
+
+          lower = np.array([98, 110, 2])
+          upper = np.array([120, 255, 200])
+          hsv = cv2.cvtColor(plate, cv2.COLOR_BGR2HSV)
+          plate = cv2.inRange(hsv,lower,upper)
+          # cv2.imshow("hsv",hsv)
+          # cv2.waitKey(3)
+          # cv2.imshow("plate",plate)
+          # cv2.waitKey(3)
+
+          return state,plate,position
     
-
     # cv2.namedWindow("Red Image", cv2.WINDOW_NORMAL)
     # cv2.imshow("Red Image", img)
     # cv2.waitKey(3)
-    print("State:"+state)
-    return state
+    print("State: " + state)
+    return state, np.empty(0), np.empty(0)
 
   def sortContours(self, contours):
     
@@ -620,12 +664,12 @@ class robot_driver:
     return sortedContours
   
   def followTwoLines(self, cols, rows, topleft, topright, botleft, botright, img):
-    kp = 0.03
+    kp = 0.0025
     ki = 0
     kd = 0.0002
     saturation = 2
     target = int(cols/2)
-    speed = 0.3
+    speed = 0.28
 
     # Find Average of all of the centres
     ave_centre = (int((topleft[0] + botleft[0] + topright[0] + botright[0]) / 4), int((topleft[1] + botleft[1] + topright[1] + botright[1]) / 4))
@@ -644,12 +688,12 @@ class robot_driver:
     print("Reguler 2 lines")
 
   def followOneLine(self, cols, rows, offset, contCentre, img):
-    kp = 0.03
+    kp = 0.025
     ki = 0
     kd = 0.0001
     saturation = 2
     targetAng = int(cols/2)
-    speed = 0.18
+    speed = 0.15
     
     if contCentre[0] <= targetAng:
       centre = (contCentre[0] + offset, contCentre[1])
