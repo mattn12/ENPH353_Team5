@@ -60,9 +60,22 @@ class plate_reader:
     # except CvBridgeError as e:
     #   print(e)
     # ##################### UNCOMMENT FOR INDIV. TESTING #####################
-
+    
+    
+    orig = np.copy(plate)
     erode_kernel3 = np.ones((3,3))
     dilate_kernel3 = np.ones((3, 3))
+
+
+    lower = np.array([98, 110, 2])
+    upper = np.array([120, 255, 200])
+    hsv = cv2.cvtColor(plate, cv2.COLOR_BGR2HSV)
+    plate = cv2.inRange(hsv, lower, upper)
+    # cv2.imshow("hsv",hsv)
+    # cv2.waitKey(3)
+    # cv2.imshow("plate",plate)
+    # cv2.waitKey(3)
+
 
     # guess location of characters in order
     guesses = [plate[:,:60],
@@ -170,6 +183,10 @@ class plate_reader:
     
     output = str('Team5,password,{},{}').format(position_num,plate_num)
     # print(output)
+    # cv2.imwrite(os.path.join("/home/matthew/Test Images/"+plate_num+"_processed.png"), plate)
+    cv2.imwrite(os.path.join("/home/matthew/Plate Images/"+plate_num+".png"), orig)
+
+
     
     return "drive", True, output
 
