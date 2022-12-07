@@ -129,9 +129,9 @@ class robot_driver:
     processed_img = self.process_img(cv_image)
     processed_img = cv2.dilate(processed_img, np.ones((3,3)), iterations = 1)
 
-    cv2.namedWindow("Processed Line Following",cv2.WINDOW_NORMAL)
-    cv2.imshow("Processed Line Following", processed_img)
-    cv2.waitKey(3)
+    # cv2.namedWindow("Processed Line Following",cv2.WINDOW_NORMAL)
+    # cv2.imshow("Processed Line Following", processed_img)
+    # cv2.waitKey(3)
     #todo Determine if we need to change state
 
 
@@ -589,7 +589,7 @@ class robot_driver:
 
         # If we are close enough, found the car (area big enough to avoid noise)
         # Get and trasform the plate and position number, send to read_plate
-        if (len(points) == 4 and check_area > 3200) and (len(points_Pos) == 4 and check_areaPos > 14000):
+        if (len(points) == 4 and check_area > 3200) and (len(points_Pos) == 4 and check_areaPos > 13500):
           print("Car detected")
           state = "found_car"
 
@@ -625,24 +625,13 @@ class robot_driver:
           # cv2.waitKey(3)
           # cv2.imshow("image6", position)
           # cv2.waitKey(3) 
-          cv2.namedWindow("Plate and Position", cv2.WINDOW_NORMAL)
-          cv2.imshow("Plate and Position", np.concatenate((np.pad(plate, [(0, 50), (0, 0), (0, 0)], mode='constant'),
-                                                           position), axis=1))
+          # cv2.namedWindow("Plate and Position", cv2.WINDOW_NORMAL)
+          # cv2.imshow("Plate and Position", np.concatenate((np.pad(plate, [(0, 50), (0, 0), (0, 0)], mode='constant'),
+          #                                                  position), axis=1))
+          # cv2.waitKey(3)
+          cv2.namedWindow("Plate", cv2.WINDOW_NORMAL)
+          cv2.imshow("Plate", plate)
           cv2.waitKey(3)
-          # cv2.namedWindow("Plate", cv2.WINDOW_NORMAL)
-          # cv2.imshow("Plate", plate)
-          # cv2.waitKey(3)
-
-
-
-          lower = np.array([98, 110, 2])
-          upper = np.array([120, 255, 200])
-          hsv = cv2.cvtColor(plate, cv2.COLOR_BGR2HSV)
-          plate = cv2.inRange(hsv,lower,upper)
-          # cv2.imshow("hsv",hsv)
-          # cv2.waitKey(3)
-          # cv2.imshow("plate",plate)
-          # cv2.waitKey(3)
 
           return state,plate,position
     
@@ -669,7 +658,7 @@ class robot_driver:
     kd = 0.0002
     saturation = 2
     target = int(cols/2)
-    speed = 0.28
+    speed = 0.24
 
     # Find Average of all of the centres
     ave_centre = (int((topleft[0] + botleft[0] + topright[0] + botright[0]) / 4), int((topleft[1] + botleft[1] + topright[1] + botright[1]) / 4))
@@ -688,7 +677,7 @@ class robot_driver:
     print("Reguler 2 lines")
 
   def followOneLine(self, cols, rows, offset, contCentre, img):
-    kp = 0.025
+    kp = 0.02
     ki = 0
     kd = 0.0001
     saturation = 2
