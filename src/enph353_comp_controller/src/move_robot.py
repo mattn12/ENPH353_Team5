@@ -107,6 +107,7 @@ class robot_driver:
     topcrop_height = 200
     midcrop_height = 100
     side_Offset = 419
+    right_side_offset = 500
     
     # Speed(forward/back, angular)
     self.move = (0.0, 0.0)
@@ -361,10 +362,14 @@ class robot_driver:
         botcentre = (int(botContMom['m10']/botContMom['m00']), int(botContMom['m01']/botContMom['m00']))
         img_circle = cv2.circle(img_cont, (botcentre[0], botcentre[1]), 5, self.dotColour, -1)
 
+        if botcentre[0] <= int(cols/2):
+          offset = side_Offset
+        else:
+          offset =  right_side_offset
   
 
         # Follow the line
-        self.followOneLine(cols, rows, side_Offset, botcentre, img_circle)
+        self.followOneLine(cols, rows, offset, botcentre, img_circle)
 
       else:
         img_text = cv2.putText(cv_image, "Zero Area", (int(cols / 2), 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
@@ -653,12 +658,12 @@ class robot_driver:
     return sortedContours
   
   def followTwoLines(self, cols, rows, topleft, topright, botleft, botright, img):
-    kp = 0.0025
+    kp = 0.008
     ki = 0
-    kd = 0.0002
-    saturation = 2
+    kd = 0.00002
+    saturation = 3
     target = int(cols/2)
-    speed = 0.24
+    speed = 0.25
 
     # Find Average of all of the centres
     ave_centre = (int((topleft[0] + botleft[0] + topright[0] + botright[0]) / 4), int((topleft[1] + botleft[1] + topright[1] + botright[1]) / 4))
@@ -677,19 +682,19 @@ class robot_driver:
     print("Reguler 2 lines")
 
   def followOneLine(self, cols, rows, offset, contCentre, img):
-    kp = 0.02
+    kp = 0.015
     ki = 0
-    kd = 0.0001
-    saturation = 2
+    kd = 0.00005
+    saturation = 5
     targetAng = int(cols/2)
     speed = 0.15
     
     if contCentre[0] <= targetAng:
       centre = (contCentre[0] + offset, contCentre[1])
-      text = "One Line:\tLeft"
+      text = "One Line: Left"
     else:
       centre = (contCentre[0] - offset, contCentre[1])
-      text = "One Line:\tRight"
+      text = "One Line: Right"
 
     img_circle = cv2.circle(img, (centre[0], 200), 10, self.dotColour, -1)
     # img_line = cv2.line(img_circle, (0, targetLine), (cols, targetLine), self.dotColour, 1)

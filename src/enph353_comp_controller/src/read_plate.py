@@ -45,8 +45,8 @@ class plate_reader:
     # self.license_pub = rospy.Publisher("/license_plate", String, queue_size=1)
     # ##################### UNCOMMENT FOR INDIV. TESTING #####################
     
-    self.alpha_model = models.load_model('plate_models/alpha_model.h5')
-    self.num_model = models.load_model('plate_models/num_model.h5')
+    self.alpha_model = models.load_model('src/enph353_comp_controller/src/plate_models/alpha_model.h5')
+    self.num_model = models.load_model('src/enph353_comp_controller/src/plate_models/num_model.h5')
     self.allalpha = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
     self.allnum = "0123456789"
     # self.startRun = True
