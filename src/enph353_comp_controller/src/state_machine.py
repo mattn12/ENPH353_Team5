@@ -16,6 +16,8 @@ from move_robot import robot_driver
 from read_plate import plate_reader
 from cross_walk import avoid_ped
 
+from time import sleep
+
 
 ## States
 
@@ -31,8 +33,8 @@ class state_machine:
 
     # State Variables
     self.published_plate = False
-    self.states = {"drive", "cross_walk", "found_car"}
-    self.currentState = "drive"
+    self.states = {"drive", "cross_walk", "found_car","turn_left"}
+    self.currentState = "turn_left"
     self.move = Twist()
 
     # output to start the timer
@@ -41,16 +43,16 @@ class state_machine:
     # Initialize Classes
     self.drive = robot_driver()
     self.cross = avoid_ped()
-    self.plate = plate_reader()
+    self.plate_read = plate_reader()
+    self.plate_pic = np.empty(0)
+    self.position_pic = np.empty(0)
     print("Initialized Variables")
 
     try:
       self.license_pub.publish(self.output)
-      rospy.sleep(0.5)
-      # rospy.Timer(rospy.Duration(20),self.stop_robot)
+      rospy.Timer(rospy.Duration(160),self.stop_robot)
     except CvBridgeError as e:
       print(e)
-
 
   def state_change(self, state):
       if self.states.contains(state):
@@ -67,7 +69,7 @@ class state_machine:
 
     if self.currentState == "drive":
       print("\nDriving\n")
-      self.currentState, mover = self.drive.run_drive(cv_image,self.published_plate)
+      self.currentState, mover, self.plate_pic, self.position_pic = self.drive.run_drive(cv_image,self.published_plate)
       self.published_plate = False
       # self.move.linear.x = mover[0]
       # self.move.angular.z = mover[1]
@@ -82,22 +84,24 @@ class state_machine:
       (self.move.linear.x, self.move.angular.z) = mover
     elif self.currentState == "found_car":
       print("\nReading Plate\n")
-      mover = (0,0)
-      self.currentState, self.published_plate, self.output =  self.plate.read_plate(cv_image)
+      mover = (0.1,0)
+      self.currentState, self.published_plate, self.output =  self.plate_read.read_plate(self.plate_pic, self.position_pic)
       (self.move.linear.x, self.move.angular.z) = mover
       if self.output != "ERROR":
         try:
+          print(self.output)
           self.license_pub.publish(self.output)
-          rospy.sleep(0.5)
+          rospy.sleep(0.2)
         except CvBridgeError as e:
           print(e)
       else:
         self.currentState = "drive"
+    elif self.currentState == "turn_left":
+      (self.move.linear.x, self.move.angular.z) = (0.3, 0.95)
+      sleep(3)
+      self.currentState = "drive"
     else:
       print("The given state: %s does not match a known state", self.currentState)
-
-
-    # Run Matthew's License Plate Code
 
 
     try:
