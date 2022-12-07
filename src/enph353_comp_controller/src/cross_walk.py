@@ -6,6 +6,7 @@ import sys
 import rospy
 import cv2
 import time
+from numpy import copy
 # from std_msgs.msg import String
 # from sensor_msgs.msg import Image
 # from cv_bridge import CvBridge, CvBridgeError
@@ -22,7 +23,7 @@ class avoid_ped:
     def run_cross_walk(self, cv_image):
         move = (0.0, 0.0)
         state = "cross_walk"
-        go_timeout = 1.5
+        go_timeout = 1.4
         (rows,cols,channels) = cv_image.shape
 
         move_time = time.time() - self.start_time
@@ -89,13 +90,13 @@ class avoid_ped:
                     if centre[0] > bound1 and centre[0] < bound2:
                         img_text = cv2.putText(img_cont, "GO!!!", (int(cols / 2), 70), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
                         self.has_gone = True
+                        time.sleep(0.5)
                         move = (0.45, 0)
                         self.start_time = time.time()
 
-
-            
-        cv2.imshow("Debug Image", img_text)
-        cv2.waitKey(3)
+        # img_text = copy(cv_image)
+        # cv2.imshow("Debug Image", img_text)
+        # cv2.waitKey(3)
         return state, move
  
 
