@@ -32,10 +32,11 @@ class state_machine:
     self.license_pub = rospy.Publisher("/license_plate", String, queue_size=1)
 
     # State Variables
-    self.published_plate = False
     self.states = {"drive", "cross_walk", "found_car","turn_left"}
     self.currentState = "turn_left"
-    self.move = Twist()
+    self.published_plate = False
+    self.plate_pic = np.empty(0)
+    self.position_pic = np.empty(0)
 
     # output to start the timer
     self.output = str('Team5,password,0,ABCD')
@@ -44,8 +45,7 @@ class state_machine:
     self.drive = robot_driver()
     self.cross = avoid_ped()
     self.plate_read = plate_reader()
-    self.plate_pic = np.empty(0)
-    self.position_pic = np.empty(0)
+    self.move = Twist()
     print("Initialized Variables")
 
     try:
@@ -54,11 +54,6 @@ class state_machine:
     except CvBridgeError as e:
       print(e)
 
-  def state_change(self, state):
-      if self.states.contains(state):
-          self.currentState = state
-      else:
-          print("Not a state")
 
   def run(self, data):
     try:
@@ -71,17 +66,13 @@ class state_machine:
       print("\nDriving\n")
       self.currentState, mover, self.plate_pic, self.position_pic = self.drive.run_drive(cv_image,self.published_plate)
       self.published_plate = False
-      # self.move.linear.x = mover[0]
-      # self.move.angular.z = mover[1]
       (self.move.linear.x, self.move.angular.z) = mover
-      # self.move.linear.x = 0
-      # self.move.angular.z = 0
+      
     elif self.currentState == "cross_walk":
       print("\nCross Walk\n")
       self.currentState, mover =  self.cross.run_cross_walk(cv_image)
-      # self.move.linear.x = mover[0]
-      # self.move.angular.z = mover[1]
       (self.move.linear.x, self.move.angular.z) = mover
+
     elif self.currentState == "found_car":
       print("\nReading Plate\n")
       mover = (0.1,0)
@@ -96,10 +87,12 @@ class state_machine:
           print(e)
       else:
         self.currentState = "drive"
+
     elif self.currentState == "turn_left":
+      self.currentState = "drive"
       (self.move.linear.x, self.move.angular.z) = (0.3, 0.95)
       sleep(3)
-      self.currentState = "drive"
+
     else:
       print("The given state: %s does not match a known state", self.currentState)
 
@@ -126,18 +119,6 @@ class state_machine:
 
     print("Stopped robot")
     rospy.signal_shutdown("Timer ended.")
-
-  # def run_drive(self):
-  #   print("\n\n\n\n\n\nRun Drive\n\n\n\n\n\n")
-  #   self.ic.callback(data = self.currentState)
-
-  # def run_cross_walk(self):
-  #   print("\n\n\n\n\n\nRun Cross Walk\n\n\n\n\n\n")
-  #   self.ic.callback()
-
-  # def run_found_car(self):
-  #   print("\n\n\n\n\n\nRun Found Car\n\n\n\n\n\n")
-  #   self.ic.callback()
 
 
 def main(args):
