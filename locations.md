@@ -14,7 +14,7 @@ Located in
 To run:
 ```
 source ~/ros_ws/devel/setup.bash
-rosrun adeept_awr_gazebo <controller code name>.py
+rosrun enph353_comp_controller <controller code name>.py
 ```
 
 ## Score tracker
