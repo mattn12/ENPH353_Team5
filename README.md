@@ -24,6 +24,7 @@ Written by Matthew Ngai and Christopher Griffiths in Winter 2022 Term 1.
 
 
 ## State Machine Structure
+![state-struct](https://github.com/mattn12/ENPH353_Team5/assets/90164192/80778a01-47c0-48c0-b84d-4b1e17f67ad5)
 * On the left, a legend of which python module/script the blocks belong to 
 * Rectangular blocks are methods (process robot camera input data)
 * Rounded blocks are instructions (output to robot motors/licence plate reporting server)
