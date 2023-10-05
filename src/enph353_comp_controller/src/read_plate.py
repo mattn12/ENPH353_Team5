@@ -37,52 +37,27 @@ set_session(sess1)
 
 class plate_reader:
 
-  def __init__(self):
-    
-    # ##################### UNCOMMENT FOR INDIV. TESTING #####################
-    # self.bridge = CvBridge()
-    # self.image_sub = rospy.Subscriber("/R1/pi_camera/image_raw",Image,self.read_plate)
-    # self.license_pub = rospy.Publisher("/license_plate", String, queue_size=1)
-    # ##################### UNCOMMENT FOR INDIV. TESTING #####################
-    
+  def __init__(self):  
     self.alpha_model = models.load_model('src/enph353_comp_controller/src/plate_models/alpha_model.h5')
     self.num_model = models.load_model('src/enph353_comp_controller/src/plate_models/num_model.h5')
     self.allalpha = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
     self.allnum = "0123456789"
-    # self.startRun = True
-    # self.testPlate = True
 
   def read_plate(self,plate,position):
-    
-    # ##################### UNCOMMENT FOR INDIV. TESTING #####################
-    # try:
-    #   cv_image = self.bridge.imgmsg_to_cv2(cv_image,"bgr8")
-    # except CvBridgeError as e:
-    #   print(e)
-    # ##################### UNCOMMENT FOR INDIV. TESTING #####################
-    
-    
     orig = np.copy(plate)
     erode_kernel3 = np.ones((3,3))
     dilate_kernel3 = np.ones((3, 3))
-
 
     lower = np.array([98, 110, 2])
     upper = np.array([120, 255, 200])
     hsv = cv2.cvtColor(plate, cv2.COLOR_BGR2HSV)
     plate = cv2.inRange(hsv, lower, upper)
-    # cv2.imshow("hsv",hsv)
-    # cv2.waitKey(3)
-    # cv2.imshow("plate",plate)
-    # cv2.waitKey(3)
-
 
     # guess location of characters in order
     guesses = [plate[:,:60],
             plate[:,50:110],
             plate[:,130:180],
             plate[:,170:]]
-
 
     chars = []
     # find 4 characters
@@ -96,12 +71,6 @@ class plate_reader:
       # take the largest contour
       cnt = sortedContours[0]
 
-      # # Draw contours for verification
-      # merge = cv2.merge((guess,guess,guess))
-      # cv2.drawContours(merge,[cnt],0,(0,255,0),3)
-      # cv2.imshow('cont',merge)
-      # cv2.waitKey(3)
-
       x,y,w,h = cv2.boundingRect(cnt)
       
       ########### HANDLING CASES WITH "merged characters" ################
@@ -113,17 +82,9 @@ class plate_reader:
         w = 36
       ########### HANDLING CASES WITH "merged characters" ################
 
-      
       # split the images into three parts: ___, character, ____
       split = np.hsplit(guess,[x,x+w])
-      # cv2.imshow('1',split[0])
-      # cv2.waitKey(3)
-      # cv2.imshow('2',split[1])
-      # cv2.waitKey(3)
-      # cv2.imshow('3',split[2])
-      # cv2.waitKey(3)
       char = split[1]
-
 
       # zero pad the sides to make it 100px wide
       rows, cols = split[1].shape
@@ -137,21 +98,17 @@ class plate_reader:
         else:
           char = np.pad(split[1], [(0,0),(to_add,to_add)],
                         mode='constant',constant_values = 0)
-
       if cols > 100:
         char = cv2.resize(char,(50,50))
-
 
       char = cv2.dilate(char,dilate_kernel3,iterations=1)
       _,char = cv2.threshold(char,50,255,cv2.THRESH_BINARY)
       char = cv2.erode(char,erode_kernel3,iterations=1)
       char = cv2.GaussianBlur(char,(5,5),0)
       _,char = cv2.threshold(char,70,255,cv2.THRESH_BINARY)
-
-
-
       chars.append(char)
 
+    
     # read the characters
     plate_num = ""
     for i in range(4):
@@ -169,8 +126,6 @@ class plate_reader:
     position = position[:,:,0]
     position = cv2.dilate(position,dilate_kernel3,iterations = 1)
     position = cv2.resize(position,(50,50))
-    # position = cv2.GaussianBlur(position,(15,15),0)
-    # _,position = cv2.threshold(position,60,255,cv2.THRESH_BINARY)
     
     
     # read the number
@@ -178,76 +133,12 @@ class plate_reader:
     pos_predict = self.num_model.predict(img_aug)
     position_num=self.allnum[np.argmax(pos_predict)]
 
-    # cv2.imshow("image7", position)
-    # cv2.waitKey(3) 
     
     output = str('Team5,password,{},{}').format(position_num,plate_num)
-    # print(output)
-    # cv2.imwrite(os.path.join("/home/matthew/Test Images/"+plate_num+"_processed.png"), plate)
     cv2.imwrite(os.path.join("/home/matthew/Plate Images/"+plate_num+".png"), orig)
 
-
     
-    return "drive", True, output
-
-
-
-
-
-
-      # cv2.imshow("G0", guesses[0])
-      # cv2.waitKey(3)
-      # cv2.imshow("G1", guesses[1])
-      # cv2.waitKey(3)
-      # cv2.imshow("G2", guesses[2])
-      # cv2.waitKey(3)
-      # cv2.imshow("G3", guesses[3])
-      # cv2.waitKey(3)
-
-
-
-
-      # cv2.imshow("L0", chars[0])
-      # cv2.waitKey(3)
-      # cv2.imshow("L1", chars[1])
-      # cv2.waitKey(3)
-      # cv2.imshow("L2", chars[2])
-      # cv2.waitKey(3)
-      # cv2.imshow("L3", chars[3])
-      # cv2.waitKey(3)
-  
-
-
-
-    # cv2.imshow("image4", blurred)
-    # cv2.waitKey(3)
-    # cv2.imshow("mask", colour_mask)
-    # cv2.waitKey(3)
-    # cv2.imshow("image2", img_crop)
-    # cv2.waitKey(3)
-
-    
-
-
-
-    # # start the timer
-    # if self.startRun:
-    #   output = str('Team5,password,0,ABCD')
-    #   self.startRun = False
-
-    #   try:
-    #     self.license_pub.publish(output)
-    #     rospy.sleep(0.5)
-    #   except CvBridgeError as e:
-    #     print(e)
-        
-    #   rospy.Timer(rospy.Duration(10),stop_robot)
-
-
-
-
-
-    
+    return "drive", True, output    
 
 
 def main(args):
