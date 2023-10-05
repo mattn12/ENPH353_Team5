@@ -1,5 +1,3 @@
-# Introduction
-
 ## Authors
 Project repository for UBC's ENPH 353 course, a guided, self-directed project course aimed at applying control software and machine learning.
 
